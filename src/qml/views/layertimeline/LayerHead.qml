@@ -56,6 +56,8 @@ Rectangle {
     MouseArea {
         anchors.fill: parent
         anchors.rightMargin: reorderColumn.width + 4
+        hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
         onClicked: head.clicked()
     }
 
@@ -80,6 +82,7 @@ Rectangle {
 
             Shotcut.HoverTip {
                 text: qsTr('Move layer up')
+                cursorShape: Qt.PointingHandCursor
             }
         }
 
@@ -94,6 +97,7 @@ Rectangle {
 
             Shotcut.HoverTip {
                 text: qsTr('Move layer down')
+                cursorShape: Qt.PointingHandCursor
             }
         }
     }
@@ -147,6 +151,8 @@ Rectangle {
             MouseArea {
                 anchors.fill: parent
                 enabled: !nameEdit.visible
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
                 onClicked: head.clicked()
                 onDoubleClicked: {
                     nameEdit.text = head.trackName;
@@ -156,6 +162,7 @@ Rectangle {
 
                 Shotcut.HoverTip {
                     text: qsTr('Double-click to rename this layer')
+                    cursorShape: Qt.PointingHandCursor
                 }
             }
         }
@@ -174,6 +181,7 @@ Rectangle {
 
             Shotcut.HoverTip {
                 text: qsTr('Show/Hide')
+                cursorShape: Qt.PointingHandCursor
             }
         }
 
@@ -190,6 +198,7 @@ Rectangle {
 
             Shotcut.HoverTip {
                 text: head.isLocked ? qsTr('Unlock layer') : qsTr('Lock layer')
+                cursorShape: Qt.PointingHandCursor
             }
         }
 
@@ -206,6 +215,7 @@ Rectangle {
 
             Shotcut.HoverTip {
                 text: qsTr('Delete layer')
+                cursorShape: Qt.PointingHandCursor
             }
         }
     }

@@ -749,6 +749,7 @@ Rectangle {
 
                 Shotcut.HoverTip {
                     text: qsTr('Add a new visual layer (video/image/text/shape)')
+                    cursorShape: Qt.PointingHandCursor
                 }
             }
 
@@ -759,6 +760,7 @@ Rectangle {
 
                 Shotcut.HoverTip {
                     text: qsTr('Add a new audio layer')
+                    cursorShape: Qt.PointingHandCursor
                 }
             }
 
@@ -771,6 +773,11 @@ Rectangle {
                 implicitWidth: 24
                 implicitHeight: 24
                 onClicked: root.adjustZoom(1 / 1.4)
+
+                Shotcut.HoverTip {
+                    text: qsTr('Zoom out')
+                    cursorShape: Qt.PointingHandCursor
+                }
             }
 
             ToolButton {
@@ -778,6 +785,11 @@ Rectangle {
                 implicitWidth: 24
                 implicitHeight: 24
                 onClicked: root.adjustZoom(1.4)
+
+                Shotcut.HoverTip {
+                    text: qsTr('Zoom in')
+                    cursorShape: Qt.PointingHandCursor
+                }
             }
         }
     }
