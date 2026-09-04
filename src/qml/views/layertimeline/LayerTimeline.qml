@@ -367,10 +367,11 @@ Rectangle {
                     timeline.selection = [Qt.point(clipIndex, layerRowItem.trackIndex)];
                     timeline.openProperties();
                 }
-                onLayerHoverChanged: targetTrack => {
-                    root.hoverTargetTrack = (targetTrack === layerRowItem.trackIndex) ? -1 : targetTrack;
+                onLayerHoverChanged: (targetTrack, newTrackZone) => {
+                    root.newLayerZone = newTrackZone;
+                    root.hoverTargetTrack = newTrackZone !== '' ? -1 : (targetTrack === layerRowItem.trackIndex ? -1 : targetTrack);
                 }
-                onDragPreviewChanged: (startFrame, durationFrames, targetTrack, tint, sourceStart, sourceTrack) => {
+                onDragPreviewChanged: (startFrame, durationFrames, targetTrack, tint, sourceStart, sourceTrack, newTrackZone) => {
                     root.dragPreviewStart = startFrame;
                     root.dragPreviewDuration = durationFrames;
                     root.dragPreviewTrack = targetTrack;
@@ -380,8 +381,15 @@ Rectangle {
                     root.dragDeltaFrames = startFrame - sourceStart;
                     root.dragDeltaLayers = targetTrack - sourceTrack;
                     root.dragPreviewActive = true;
+                    // Reuses the same new-layer band the Playlist/Source drop
+                    // flow shows, so dragging an existing element past the top
+                    // or bottom row offers to create a track exactly the same way.
+                    root.newLayerZone = newTrackZone;
                 }
-                onDragPreviewEnded: root.dragPreviewActive = false
+                onDragPreviewEnded: {
+                    root.dragPreviewActive = false;
+                    root.newLayerZone = '';
+                }
             }
         }
 
@@ -591,7 +599,9 @@ Rectangle {
         y: rulerArea.height + (root.newLayerZone === 'below' ? tracksFlickable.height - height : 0)
         width: Math.max(0, root.width - root.headerWidth)
         height: 12
-        visible: root.newLayerZone !== '' && (dropZone.containsDrag || externalDragTimer.running)
+        // Shown for both an external drag (DropArea/TimelineDock-reported) and
+        // an in-timeline drag past the top/bottom row (dragPreviewActive).
+        visible: root.newLayerZone !== '' && (dropZone.containsDrag || externalDragTimer.running || root.dragPreviewActive)
         color: '#2D9CC4'
         z: 61
 

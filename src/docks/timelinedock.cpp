@@ -4076,6 +4076,26 @@ bool TimelineDock::moveClip(int fromTrack, int toTrack, int clipIndex, int posit
     return true;
 }
 
+/*!
+    \qmlmethod bool TimelineDock::moveClipToNewTrack(int fromTrack, int clipIndex, int position, bool above)
+    \brief Creates a new video track (above) or audio track (below) and moves the clip
+    at (\a fromTrack, \a clipIndex) onto it at \a position, so dragging a clip past the
+    top or bottom of the layer stack does not require adding a track by hand first
+    (matching handleDropNewTrack's behavior for drops from outside the timeline).
+*/
+bool TimelineDock::moveClipToNewTrack(int fromTrack, int clipIndex, int position, bool above)
+{
+    MAIN.undoStack()->beginMacro(tr("Add Track and Move Clip"));
+    int newTrack = above ? addVideoTrack() : addAudioTrack();
+    // addVideoTrack() always prepends the new track at row 0, which shifts every
+    // existing track index up by one; addAudioTrack() appends, so nothing shifts.
+    if (above)
+        fromTrack += 1;
+    bool result = moveClip(fromTrack, newTrack, clipIndex, position, false);
+    MAIN.undoStack()->endMacro();
+    return result;
+}
+
 void TimelineDock::onClipMoved(int fromTrack, int toTrack, int clipIndex, int position, bool ripple)
 {
     int n = selection().size();

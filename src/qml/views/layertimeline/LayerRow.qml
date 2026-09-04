@@ -38,9 +38,12 @@ Item {
 
     signal blockClicked(int clipIndex, int modifiers)
     signal blockDoubleClicked(int clipIndex)
-    signal layerHoverChanged(int targetTrack)
+    // newTrackZone is '', 'above', or 'below': dragging past the top or bottom
+    // row, so LayerTimeline should show the new-layer band instead of a normal
+    // row highlight. targetTrack is meaningless (-1) whenever it is set.
+    signal layerHoverChanged(int targetTrack, string newTrackZone)
     // Where the element being dragged would land if dropped right now.
-    signal dragPreviewChanged(int startFrame, int durationFrames, int targetTrack, color tint, int sourceStart, int sourceTrack)
+    signal dragPreviewChanged(int startFrame, int durationFrames, int targetTrack, color tint, int sourceStart, int sourceTrack, string newTrackZone)
     signal dragPreviewEnded
 
     // itemAt() is a method call, so it creates no binding dependency; if a
@@ -87,6 +90,18 @@ Item {
         return Logic.clamp(layerRow.trackIndex + layerDelta, 0, layerRow.trackCount - 1);
     }
 
+    // '', 'above', or 'below': dragging past the top or bottom row means the
+    // element should land on a brand new track rather than clamp to the edge
+    // one, matching what dropping a Playlist item there already does.
+    function newTrackZoneFor(layerDelta) {
+        const raw = layerRow.trackIndex + layerDelta;
+        if (raw < 0)
+            return 'above';
+        if (raw >= layerRow.trackCount)
+            return 'below';
+        return '';
+    }
+
     // The delegate must live inside the DelegateModel: a Repeater bound to a
     // DelegateModel uses that model's own delegate and ignores its own (this is
     // how ../timeline/Track.qml is structured too).
@@ -117,10 +132,13 @@ Item {
                 layerRow.blockDoubleClicked(blockItem.clipIndex);
             }
             onLayerHoverDelta: delta => {
-                layerRow.layerHoverChanged(delta === 0 ? -1 : layerRow.resolveTargetTrack(delta));
+                const zone = layerRow.newTrackZoneFor(delta);
+                layerRow.layerHoverChanged(zone !== '' ? -1 : (delta === 0 ? -1 : layerRow.resolveTargetTrack(delta)), zone);
             }
             onDragPreview: (startFrame, layerDelta) => {
-                layerRow.dragPreviewChanged(startFrame, blockItem.clipDuration, layerRow.resolveTargetTrack(layerDelta), blockItem.typeColor, blockItem.clipStart, layerRow.trackIndex);
+                const zone = layerRow.newTrackZoneFor(layerDelta);
+                const target = zone !== '' ? layerRow.trackIndex + layerDelta : layerRow.resolveTargetTrack(layerDelta);
+                layerRow.dragPreviewChanged(startFrame, blockItem.clipDuration, target, blockItem.typeColor, blockItem.clipStart, layerRow.trackIndex, zone);
             }
             onDragEnded: layerRow.dragPreviewEnded()
             onTrimInRequested: delta => {
@@ -145,6 +163,11 @@ Item {
                 timeline.commitTrimCommand();
             }
             onMoveCommitted: (newStartFrame, layerDelta) => {
+                const zone = layerRow.newTrackZoneFor(layerDelta);
+                if (zone !== '') {
+                    timeline.moveClipToNewTrack(layerRow.trackIndex, blockItem.clipIndex, newStartFrame, zone === 'above');
+                    return;
+                }
                 const targetTrack = layerRow.resolveTargetTrack(layerDelta);
                 timeline.moveClip(layerRow.trackIndex, targetTrack, blockItem.clipIndex, newStartFrame, false);
             }

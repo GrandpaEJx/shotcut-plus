@@ -163,6 +163,7 @@ public slots:
     void setTrackLock(int trackIndex, bool lock);
     bool setTrackGain(int trackIndex, double gain);
     bool moveClip(int fromTrack, int toTrack, int clipIndex, int position, bool ripple);
+    bool moveClipToNewTrack(int fromTrack, int clipIndex, int position, bool above);
     void onClipMoved(int fromTrack, int toTrack, int clipIndex, int position, bool ripple);
     bool trimClipIn(
         int trackIndex, int clipIndex, int oldClipIndex, int delta, bool ripple, bool roll);
