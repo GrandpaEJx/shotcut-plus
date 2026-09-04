@@ -302,6 +302,16 @@ TimelineDock::TimelineDock(QWidget *parent)
     viewMenu->addAction(Actions["timelinePropertiesAction"]);
     viewMenu->addSeparator();
     viewMenu->addAction(Actions["timelineToggleLayerViewAction"]);
+    viewMenu->addSeparator();
+    // These display toggles previously lived only in Settings > Timeline,
+    // three menu levels away from the panel they affect; surface them here
+    // too so they are one click from the dock's own hamburger menu.
+    viewMenu->addAction(Actions["timelineShowWaveformsAction"]);
+    viewMenu->addAction(Actions["timelineShowThumbnailsAction"]);
+    viewMenu->addAction(Actions["timelineAdjustGainAction"]);
+    viewMenu->addAction(Actions["timelineAutoAddTracksAction"]);
+    viewMenu->addAction(Actions["timelineAllowTransitionsAction"]);
+    viewMenu->addAction(Actions["timelineRectangleSelectAction"]);
     m_mainMenu->addMenu(viewMenu);
     QMenu *markerMenu = new QMenu(tr("Marker"), this);
     markerMenu->addAction(Actions["timelineMarkerAction"]);
@@ -316,8 +326,11 @@ TimelineDock::TimelineDock(QWidget *parent)
     m_clipMenu = new QMenu(tr("Timeline Clip"), this);
     m_clipMenu->addAction(Actions["timelineCutAction"]);
     m_clipMenu->addAction(Actions["timelineCopyAction"]);
+    m_clipMenu->addAction(Actions["timelineDuplicateClipAction"]);
     m_clipMenu->addAction(Actions["timelineDeleteAction"]);
     m_clipMenu->addAction(Actions["timelineLiftAction"]);
+    m_clipMenu->addAction(Actions["timelineToggleClipLockedAction"]);
+    m_clipMenu->addAction(Actions["timelineCycleClipColorAction"]);
     m_clipMenu->addAction(Actions["timelineReplaceAction"]);
     m_clipMenu->addAction(Actions["timelineSplitAction"]);
     m_clipMenu->addAction(Actions["timelineGroupAction"]);
@@ -387,7 +400,7 @@ TimelineDock::TimelineDock(QWidget *parent)
     zoomSlider->setMinimum(0);
     zoomSlider->setMaximum(300);
     zoomSlider->setValue(100);
-    zoomSlider->setTracking(false);
+    zoomSlider->setTracking(true);
     connect(zoomSlider, &QSlider::valueChanged, this, [&](int value) {
         if (!isVisible() || !m_quickView.rootObject())
             return;
@@ -1031,6 +1044,46 @@ void TimelineDock::setupActions()
         liftSelection();
     });
     Actions.add("timelineLiftAction", action);
+
+    action = new QAction(tr("Lock/Unlock Clip"), this);
+    action->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_L));
+    icon = QIcon::fromTheme("object-locked",
+                            QIcon(":/icons/oxygen/32x32/status/object-locked.png"));
+    action->setIcon(icon);
+    connect(action, &QAction::triggered, this, [&]() {
+        if (!isMultitrackValid())
+            return;
+        show();
+        raise();
+        toggleLockSelection();
+    });
+    Actions.add("timelineToggleClipLockedAction", action);
+
+    action = new QAction(tr("Duplicate Clip"), this);
+    action->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_J));
+    icon = QIcon::fromTheme("edit-copy", QIcon(":/icons/oxygen/32x32/actions/edit-copy.png"));
+    action->setIcon(icon);
+    connect(action, &QAction::triggered, this, [&]() {
+        if (!isMultitrackValid())
+            return;
+        show();
+        raise();
+        duplicateSelection();
+    });
+    Actions.add("timelineDuplicateClipAction", action);
+
+    action = new QAction(tr("Cycle Clip Color"), this);
+    action->setShortcut(QKeySequence(Qt::ALT | Qt::Key_C));
+    icon = QIcon::fromTheme("color-picker", QIcon(":/icons/oxygen/32x32/actions/color-picker.png"));
+    action->setIcon(icon);
+    connect(action, &QAction::triggered, this, [&]() {
+        if (!isMultitrackValid())
+            return;
+        show();
+        raise();
+        cycleSelectionColor();
+    });
+    Actions.add("timelineCycleClipColorAction", action);
 
     action = new QAction(tr("Overwrite"), this);
     action->setShortcut(QKeySequence(Qt::Key_B));
@@ -3090,6 +3143,84 @@ void TimelineDock::liftSelection()
     for (const auto &uuid : selectionUuids()) {
         m_model.findClipByUuid(uuid, trackIndex, clipIndex);
         lift(trackIndex, clipIndex, n > 1);
+    }
+    if (n > 1)
+        MAIN.undoStack()->endMacro();
+}
+
+/*!
+    \qmlmethod void TimelineDock::toggleLockSelection()
+    \brief Toggles the lock state of each selected clip.
+*/
+
+void TimelineDock::toggleLockSelection()
+{
+    if (selection().isEmpty())
+        selectClipUnderPlayhead();
+    if (selection().isEmpty())
+        return;
+    int n = selection().size();
+    if (n > 1)
+        MAIN.undoStack()->beginMacro(tr("Lock/unlock %1 clips").arg(n));
+    int trackIndex, clipIndex;
+    for (const auto &uuid : selectionUuids()) {
+        m_model.findClipByUuid(uuid, trackIndex, clipIndex);
+        setClipLock(trackIndex, clipIndex, !isClipLocked(trackIndex, clipIndex));
+    }
+    if (n > 1)
+        MAIN.undoStack()->endMacro();
+}
+
+/*!
+    \qmlmethod void TimelineDock::duplicateSelection()
+    \brief Duplicates the first selected clip, placing the copy right after it.
+*/
+
+void TimelineDock::duplicateSelection()
+{
+    if (selection().isEmpty())
+        selectClipUnderPlayhead();
+    if (selection().isEmpty())
+        return;
+    auto clip = selection().first();
+    int trackIndex = clip.y();
+    int clipIndex = clip.x();
+    if (isClipLocked(trackIndex, clipIndex))
+        return;
+    auto info = m_model.getClipInfo(trackIndex, clipIndex);
+    if (!info)
+        return;
+    copy(trackIndex, clipIndex);
+    overwrite(trackIndex, info->start + info->frame_count, QString(), false);
+}
+
+/*!
+    \qmlmethod void TimelineDock::cycleSelectionColor()
+    \brief Cycles the color tag of the selected clips through a small preset palette.
+*/
+
+void TimelineDock::cycleSelectionColor()
+{
+    static const QStringList kColorCycle
+        = {QString(), "#E74C3C", "#F39C12", "#F1C40F", "#2ECC71", "#3498DB", "#9B59B6"};
+    if (selection().isEmpty())
+        selectClipUnderPlayhead();
+    if (selection().isEmpty())
+        return;
+    auto first = selection().first();
+    QString currentColor = m_model
+                               .data(m_model.index(first.x(), 0, m_model.index(first.y())),
+                                     MultitrackModel::ClipColorRole)
+                               .toString();
+    int index = kColorCycle.indexOf(currentColor);
+    QString nextColor = kColorCycle.at((index + 1) % kColorCycle.size());
+    int n = selection().size();
+    if (n > 1)
+        MAIN.undoStack()->beginMacro(tr("Change color of %1 clips").arg(n));
+    int trackIndex, clipIndex;
+    for (const auto &uuid : selectionUuids()) {
+        m_model.findClipByUuid(uuid, trackIndex, clipIndex);
+        setClipColor(trackIndex, clipIndex, nextColor);
     }
     if (n > 1)
         MAIN.undoStack()->endMacro();
