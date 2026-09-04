@@ -403,6 +403,19 @@ if(APPLE)
 endif()
 
 if(UNIX AND NOT APPLE)
+  # MeltJob runs a melt executable from beside the shotcut binary, which is how
+  # a release is laid out. A build tree has none, so every export job fails with
+  # "command not found" until one is linked in. Development builds only; a
+  # release must get its melt from packaging, not from this machine.
+  if(NOT CMAKE_BUILD_TYPE STREQUAL "Release")
+    find_program(MELT_EXECUTABLE NAMES melt-7 melt)
+    if(MELT_EXECUTABLE)
+      file(CREATE_LINK ${MELT_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/melt-7 SYMBOLIC)
+    else()
+      message(WARNING "melt was not found: exporting from a development build will fail.")
+    endif()
+  endif()
+
   file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/share/shotcut)
   file(CREATE_LINK ${CMAKE_SOURCE_DIR}/src/qml ${CMAKE_BINARY_DIR}/share/shotcut/qml SYMBOLIC)
   file(CREATE_LINK ${CMAKE_SOURCE_DIR}/filter-sets ${CMAKE_BINARY_DIR}/share/shotcut/filter-sets SYMBOLIC)
