@@ -22,6 +22,8 @@
 #include "settings.h"
 
 #include <QDebug>
+#include <QDrag>
+#include <QMimeData>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QScrollBar>
@@ -41,6 +43,9 @@ PlaylistIconView::PlaylistIconView(QWidget *parent)
     verticalScrollBar()->setSingleStep(100);
     verticalScrollBar()->setPageStep(400);
     setContextMenuPolicy(Qt::CustomContextMenu);
+    // Needed for hover feedback: without it move events only arrive while a
+    // button is held.
+    viewport()->setMouseTracking(true);
     connect(&Settings, SIGNAL(playlistThumbnailsChanged()), SLOT(updateSizes()));
 }
 
@@ -291,6 +296,13 @@ void PlaylistIconView::paintEvent(QPaintEvent *)
                 painter.fillRect(buttonRect, pal.highlight());
             } else {
                 painter.fillRect(buttonRect, pal.button());
+                if (idx == m_hoverIndex) {
+                    // A tint of the accent, so an item reads as grabbable before
+                    // you start dragging it. Works on light and dark palettes.
+                    QColor hoverTint = pal.highlight().color();
+                    hoverTint.setAlpha(60);
+                    painter.fillRect(buttonRect, hoverTint);
+                }
 
                 painter.setPen(pal.color(QPalette::Button).lighter());
                 painter.drawLine(buttonRect.topLeft(), buttonRect.topRight());
@@ -337,6 +349,79 @@ void PlaylistIconView::paintEvent(QPaintEvent *)
     if (!dragIndicator.isNull()) {
         painter.fillRect(dragIndicator, pal.buttonText());
     }
+}
+
+void PlaylistIconView::mousePressEvent(QMouseEvent *event)
+{
+    // Remembered so a drag image can be positioned under the cursor the same
+    // way it was grabbed; QAbstractItemView keeps its own copy privately.
+    m_pressPos = event->pos();
+    QAbstractItemView::mousePressEvent(event);
+}
+
+void PlaylistIconView::startDrag(Qt::DropActions supportedActions)
+{
+    QModelIndexList indexes = selectionModel() ? selectionModel()->selectedIndexes()
+                                               : QModelIndexList();
+    const QModelIndex pressed = indexAt(m_pressPos);
+    if (!indexes.contains(pressed) && pressed.isValid()) {
+        indexes.clear();
+        indexes << pressed;
+    }
+    if (indexes.isEmpty() || !model())
+        return;
+
+    QMimeData *mimeData = model()->mimeData(indexes);
+    if (!mimeData)
+        return;
+
+    // Union of the dragged items as they appear on screen right now.
+    QRect itemsRect;
+    for (const auto &index : std::as_const(indexes)) {
+        QRect r = _visualRect(index);
+        if (r.isNull())
+            continue;
+        r.translate(-horizontalOffset(), -verticalOffset());
+        itemsRect = itemsRect.isNull() ? r : itemsRect.united(r);
+    }
+    itemsRect = itemsRect.intersected(viewport()->rect());
+
+    QDrag *drag = new QDrag(this);
+    drag->setMimeData(mimeData);
+    if (!itemsRect.isEmpty()) {
+        // Grab what the user is actually looking at, then fade it slightly so it
+        // reads as something being carried rather than a detached copy.
+        const QPixmap grabbed = viewport()->grab(itemsRect);
+        QPixmap dragPixmap(grabbed.size());
+        dragPixmap.setDevicePixelRatio(grabbed.devicePixelRatio());
+        dragPixmap.fill(Qt::transparent);
+        QPainter painter(&dragPixmap);
+        painter.setOpacity(0.75);
+        painter.drawPixmap(0, 0, grabbed);
+        painter.end();
+        drag->setPixmap(dragPixmap);
+        drag->setHotSpot(m_pressPos - itemsRect.topLeft());
+    }
+    drag->exec(supportedActions, defaultDropAction());
+}
+
+void PlaylistIconView::mouseMoveEvent(QMouseEvent *event)
+{
+    const QModelIndex hovered = indexAt(event->pos());
+    if (hovered != m_hoverIndex) {
+        m_hoverIndex = hovered;
+        viewport()->update();
+    }
+    QAbstractItemView::mouseMoveEvent(event);
+}
+
+void PlaylistIconView::leaveEvent(QEvent *event)
+{
+    if (m_hoverIndex.isValid()) {
+        m_hoverIndex = QModelIndex();
+        viewport()->update();
+    }
+    QAbstractItemView::leaveEvent(event);
 }
 
 void PlaylistIconView::mouseReleaseEvent(QMouseEvent *event)

@@ -44,7 +44,16 @@ public:
 
     void paintEvent(QPaintEvent *) Q_DECL_OVERRIDE;
     bool event(QEvent *event) Q_DECL_OVERRIDE;
+    void mousePressEvent(QMouseEvent *event) Q_DECL_OVERRIDE;
+    void mouseMoveEvent(QMouseEvent *event) Q_DECL_OVERRIDE;
+    void leaveEvent(QEvent *event) Q_DECL_OVERRIDE;
     void mouseReleaseEvent(QMouseEvent *event) Q_DECL_OVERRIDE;
+    // This view paints itself instead of using an item delegate, and
+    // visualRect() intentionally returns an empty rect for performance. Qt's
+    // default startDrag() builds its drag pixmap from those two things, so it
+    // produces an empty pixmap and the drag has no visible feedback at all
+    // (most obviously on Wayland). Render the drag image here instead.
+    void startDrag(Qt::DropActions supportedActions) Q_DECL_OVERRIDE;
     void dragMoveEvent(QDragMoveEvent *e) Q_DECL_OVERRIDE;
     void dragLeaveEvent(QDragLeaveEvent *e) Q_DECL_OVERRIDE;
     void dropEvent(QDropEvent *e) Q_DECL_OVERRIDE;
@@ -79,6 +88,8 @@ private:
     bool m_isToggleSelect{false};
     bool m_isRangeSelect{false};
     QModelIndex m_pendingSelect;
+    QPoint m_pressPos;
+    QModelIndex m_hoverIndex;
     int m_iconRole;
     Qt::TextElideMode m_elideMode{Qt::ElideMiddle};
 };
