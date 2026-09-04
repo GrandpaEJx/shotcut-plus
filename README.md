@@ -3,7 +3,13 @@
 [![build-shotcut-windows](https://github.com/mltframework/shotcut/workflows/build-shotcut-windows/badge.svg)](https://github.com/mltframework/shotcut/actions?query=workflow%3Abuild-shotcut-windows+is%3Acompleted+branch%3Amaster)
 
 
-# Shotcut - a free, open source, cross-platform **video editor**
+# Shotcut+ - a free, open source, cross-platform **video editor**
+
+Shotcut+ is a fork of [Shotcut](https://www.shotcut.org/) that adds a modern,
+Canva/CapCut-style **layer timeline** on top of the original editor. Everything
+else — the engine, filters, encoding, classic timeline — stays the same
+Shotcut you already know; this fork just adds an alternate, layer-based way to
+arrange clips.
 
 <div align="center">
 
@@ -11,14 +17,51 @@
 
 </div>
 
-- Features: https://www.shotcut.org/features/
-- Roadmap: https://www.shotcut.org/roadmap/
+- Upstream project: https://github.com/mltframework/shotcut
+- Features (upstream): https://www.shotcut.org/features/
+- Roadmap (upstream): https://www.shotcut.org/roadmap/
+
+## What's new in Shotcut+: the layer timeline
+
+A second, opt-in timeline view built around layers/tracks the way Canva,
+CapCut, and similar tools present them — clips stack as horizontal layers
+instead of the classic MLT track rows, aimed at people who find that mental
+model more familiar than a traditional NLE timeline.
+
+- **Layer-based drag & drop** — move and trim clips directly by dragging their
+  body or edges, with corrected resize-handle direction and a wider, more
+  reliable hit target so the resize cursor shows up when you'd expect it.
+- **Auto track creation** — drag a clip above the topmost layer or below the
+  bottommost one and a new track is created for you automatically, instead of
+  refusing the drop.
+- **Right-click context menu** on any clip: Cut, Copy, Duplicate, Lift,
+  Delete, and Properties, all sharing the same actions/shortcuts as the rest
+  of Shotcut.
+- **Per-clip color tags** — mark clips with a color from the context menu (or
+  a custom color) to visually group or categorize them, independent of track
+  color.
+- **Per-clip lock** — lock individual clips (not just whole tracks) to guard
+  them against accidental move/trim/delete while you edit around them.
+- **Hover cursors throughout** — pointing-hand/resize cursors on draggable
+  and clickable controls in the layer timeline's headers and toolbar for
+  clearer affordances.
+- **Right-click quick-add** on empty timeline space to drop a generator or
+  adjustment clip at the clicked position, in both the layer and classic
+  timelines.
+
+The classic MLT-style timeline is untouched and still the default; the layer
+timeline is an additional view for those who prefer it.
 
 ## Install
 
-Binaries are regularly built and are available at https://www.shotcut.org/download/.
+Shotcut+ is currently source-only; build it yourself using the instructions
+below. For the unmodified upstream editor, prebuilt binaries are available at
+https://www.shotcut.org/download/.
 
 ## Contributors
+
+Shotcut+ is maintained by [GrandpaEJx](https://github.com/GrandpaEJx) as a
+fork of upstream Shotcut, whose original contributors include:
 
 - Dan Dennedy <<http://www.dennedy.org>> : main author
 - Brian Matherly <<code@brianmatherly.com>> : contributor
