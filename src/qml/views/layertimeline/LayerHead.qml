@@ -111,12 +111,53 @@ Rectangle {
             font.bold: true
         }
 
-        Label {
+        Item {
             Layout.fillWidth: true
-            text: head.trackName
-            color: activePalette.windowText
-            elide: Qt.ElideRight
-            font.pixelSize: 12
+            Layout.preferredHeight: 18
+
+            Label {
+                anchors.fill: parent
+                visible: !nameEdit.visible
+                text: head.trackName
+                color: activePalette.windowText
+                elide: Qt.ElideRight
+                verticalAlignment: Text.AlignVCenter
+                font.pixelSize: 12
+            }
+
+            TextField {
+                id: nameEdit
+
+                anchors.fill: parent
+                visible: focus
+                text: head.trackName
+                font.pixelSize: 12
+                padding: 0
+                selectByMouse: true
+                onEditingFinished: {
+                    head.renamed(text);
+                    focus = false;
+                }
+                Keys.onEscapePressed: {
+                    text = head.trackName;
+                    focus = false;
+                }
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                enabled: !nameEdit.visible
+                onClicked: head.clicked()
+                onDoubleClicked: {
+                    nameEdit.text = head.trackName;
+                    nameEdit.forceActiveFocus();
+                    nameEdit.selectAll();
+                }
+
+                Shotcut.HoverTip {
+                    text: qsTr('Double-click to rename this layer')
+                }
+            }
         }
 
         ToolButton {

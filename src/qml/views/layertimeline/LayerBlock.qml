@@ -18,9 +18,9 @@ import QtQuick
 import Shotcut.Controls as Shotcut
 
 // One design-oriented "element" on a layer: a rounded, colored, labeled block
-// that can be dragged to reposition, dragged at its edges to trim, and
-// double-clicked to duplicate. Mirrors src/qml/views/timeline/Clip.qml's
-// role bindings but with much simpler, flatter visuals.
+// that can be dragged to reposition and dragged at its edges to trim. Mirrors
+// src/qml/views/timeline/Clip.qml's role bindings but with much simpler, flatter
+// visuals.
 Rectangle {
     id: block
 
@@ -36,34 +36,44 @@ Rectangle {
     property bool selected: false
     property bool isLocked: false
     property real rowHeight: 56
+    // Optional function(frame, duration, skipTrack, skipClip) -> snapped frame,
+    // supplied by LayerTimeline. Null disables snapping.
+    property var snapFrame: null
     readonly property real clipPx: clipStart * multitrack.scaleFactor
     readonly property real clipPxW: Math.max(6, clipDuration * multitrack.scaleFactor)
+    readonly property bool dragging: dragArea.drag.active
 
     // Type classification purely for color/badge -- cosmetic only, does not
     // affect the underlying MLT producer.
     readonly property string elementType: {
+        if (isTransition)
+            return 'transition';
         if (isAudio)
             return 'audio';
         if (mltService.indexOf('text') >= 0 || mltService === 'kdenlivetitle')
             return 'text';
-        if (mltService === 'color' || mltService === 'qtblend')
+        if (mltService === 'color')
             return 'shape';
         if (mltService === 'pixbuf' || mltService === 'qimage')
             return 'image';
         return 'video';
     }
     readonly property color typeColor: {
+        if (elementType === 'transition')
+            return '#8F7FE0';
         if (elementType === 'audio')
             return '#5A9B72';
         if (elementType === 'text')
             return '#E2914B';
         if (elementType === 'shape')
-            return '#8F7FE0';
+            return '#F5A524';
         if (elementType === 'image')
             return '#C97ABF';
         return '#2D9CC4';
     }
     readonly property string typeGlyph: {
+        if (elementType === 'transition')
+            return '⇄';
         if (elementType === 'audio')
             return '♪';
         if (elementType === 'text')
@@ -74,40 +84,61 @@ Rectangle {
             return '▣';
         return '▶';
     }
+    readonly property string displayName: (isTransition && clipName === '') ? qsTr('Transition') : clipName
 
-    // (deltaFrames, layerDelta): layerDelta is how many rows above(-)/below(+)
-    // the pointer has moved, resolved to a target track by the parent LayerRow.
+    // layerDelta is how many rows above(-)/below(+) the pointer has moved;
+    // the parent LayerRow resolves it to a target track.
     signal clicked(var mouse)
     signal doubleClicked
     signal layerHoverDelta(int delta)
-    signal moveCommitted(int deltaFrames, int layerDelta)
+    // Live landing preview while dragging: where it would go if released now.
+    signal dragPreview(int startFrame, int layerDelta)
+    signal dragEnded
+    signal moveCommitted(int newStartFrame, int layerDelta)
     signal trimInRequested(int deltaFrames)
     signal trimOutRequested(int deltaFrames)
     signal trimCommitted
 
     width: clipPxW
     height: rowHeight - 10
-    y: 5
     radius: 8
     visible: !isBlank
-    color: typeColor
-    opacity: dragArea.drag.active ? 0.85 : 1
+    color: dragArea.containsMouse && !dragArea.drag.active ? Qt.lighter(typeColor, 1.12) : typeColor
+    // Locked layers read as dimmed, matching that their blocks do not respond.
+    // While dragging, the block is the thing under your cursor and the ghost
+    // outline is the real destination, so the block fades back.
+    opacity: block.isLocked ? 0.5 : (dragArea.drag.active ? 0.45 : 1)
     border.width: selected ? 2 : 1
     border.color: selected ? '#FFFFFF' : Qt.darker(typeColor, 1.4)
     clip: true
     z: dragArea.drag.active ? 100 : 1
 
-    // Only x is a live Qt Quick drag target (like Clip.qml's XAxis-only
-    // drag); the block never actually leaves its own row's coordinate space,
-    // so no reparenting/model-timing races are possible. Moving to a
-    // different layer is resolved from the pointer's y at release time (see
-    // dragArea below) and committed as a single moveClip() call.
+    // Only x is a live Qt Quick drag target (like Clip.qml's XAxis-only drag);
+    // the block never leaves its own row's coordinate space, so no reparenting
+    // or model-timing races are possible. Moving to a different layer is
+    // resolved from the pointer's y at release and committed as one moveClip().
     Binding on x {
         value: block.clipPx
         when: !dragArea.drag.active
     }
 
-    // Left edge trim handle
+    // y follows the cursor only while dragging, then snaps back to its lane.
+    // The block floats over the neighbouring rows (nothing between here and the
+    // Flickable clips), so dragging up/down is visible instead of invisible.
+    Binding on y {
+        value: 5
+        when: !dragArea.drag.active
+    }
+
+    Behavior on color {
+        ColorAnimation {
+            duration: 90
+        }
+    }
+
+    // Left edge trim handle. Deltas are measured in *scene* coordinates and the
+    // baseline is reset after each applied step: the handle itself moves as the
+    // model applies the trim, so a MouseArea-local delta would double-count.
     MouseArea {
         id: trimInArea
 
@@ -116,27 +147,32 @@ Rectangle {
         anchors.bottom: parent.bottom
         width: 8
         cursorShape: Qt.SizeHorCursor
-        enabled: !isBlank && !isTransition && !block.isLocked
-        property real pressX: 0
-        property int lastFrameDelta: 0
+        // Transitions are trimmable (that resizes the crossfade) but not movable.
+        enabled: !isBlank && !block.isLocked
+        property real lastSceneX: 0
+        property bool trimmed: false
         onPressed: mouse => {
-            pressX = mouse.x;
-            lastFrameDelta = 0;
+            lastSceneX = mapToItem(null, mouse.x, mouse.y).x;
+            trimmed = false;
         }
         onPositionChanged: mouse => {
             if (!pressed)
                 return;
-            const totalFrameDelta = Math.round((mouse.x - pressX) / multitrack.scaleFactor);
-            const incremental = totalFrameDelta - lastFrameDelta;
-            if (incremental !== 0) {
-                block.trimInRequested(incremental);
-                lastFrameDelta = totalFrameDelta;
+            const sceneX = mapToItem(null, mouse.x, mouse.y).x;
+            const delta = Math.round((sceneX - lastSceneX) / multitrack.scaleFactor);
+            if (delta !== 0) {
+                block.trimInRequested(delta);
+                lastSceneX = sceneX;
+                trimmed = true;
             }
         }
-        onReleased: block.trimCommitted()
+        onReleased: {
+            if (trimmed)
+                block.trimCommitted();
+        }
     }
 
-    // Right edge trim handle
+    // Right edge trim handle.
     MouseArea {
         id: trimOutArea
 
@@ -145,24 +181,50 @@ Rectangle {
         anchors.bottom: parent.bottom
         width: 8
         cursorShape: Qt.SizeHorCursor
-        enabled: !isBlank && !isTransition && !block.isLocked
-        property real pressX: 0
-        property int lastFrameDelta: 0
+        // Transitions are trimmable (that resizes the crossfade) but not movable.
+        enabled: !isBlank && !block.isLocked
+        property real lastSceneX: 0
+        property bool trimmed: false
         onPressed: mouse => {
-            pressX = mouse.x;
-            lastFrameDelta = 0;
+            lastSceneX = mapToItem(null, mouse.x, mouse.y).x;
+            trimmed = false;
         }
         onPositionChanged: mouse => {
             if (!pressed)
                 return;
-            const totalFrameDelta = Math.round((mouse.x - pressX) / multitrack.scaleFactor);
-            const incremental = totalFrameDelta - lastFrameDelta;
-            if (incremental !== 0) {
-                block.trimOutRequested(incremental);
-                lastFrameDelta = totalFrameDelta;
+            const sceneX = mapToItem(null, mouse.x, mouse.y).x;
+            const delta = Math.round((sceneX - lastSceneX) / multitrack.scaleFactor);
+            if (delta !== 0) {
+                block.trimOutRequested(delta);
+                lastSceneX = sceneX;
+                trimmed = true;
             }
         }
-        onReleased: block.trimCommitted()
+        onReleased: {
+            if (trimmed)
+                block.trimCommitted();
+        }
+    }
+
+    // Transitions get Shotcut's own crossfade drawing, the same shape the
+    // classic timeline uses, so they never read as an ordinary element.
+    // TimelineTransition is a QQuickPaintedItem (its own texture), so like
+    // Clip.qml it is loaded only for actual transitions -- instantiating one
+    // per block and merely hiding it costs a texture for every clip.
+    Loader {
+        anchors.fill: parent
+        anchors.margins: block.border.width
+        active: block.isTransition
+        sourceComponent: transitionComponent
+    }
+
+    Component {
+        id: transitionComponent
+
+        Shotcut.TimelineTransition {
+            colorA: block.typeColor
+            colorB: block.selected ? Qt.darker(block.typeColor) : Qt.lighter(block.typeColor)
+        }
     }
 
     Row {
@@ -172,6 +234,7 @@ Rectangle {
         anchors.rightMargin: 10
         spacing: 5
         clip: true
+        visible: !block.isTransition || block.width > 70
         width: parent.width - 20
 
         Text {
@@ -182,7 +245,7 @@ Rectangle {
         }
 
         Text {
-            text: block.clipName
+            text: block.displayName
             color: 'white'
             font.pixelSize: 11
             elide: Text.ElideRight
@@ -190,43 +253,76 @@ Rectangle {
         }
     }
 
-    // Body drag: reposition in time (x, via the real Quick drag target) and,
-    // by how far the pointer has strayed above/below the block vertically,
-    // offer to move it onto another layer -- resolved once, on release.
+    // Body drag: x is a real Quick drag target; how far the pointer strays
+    // vertically decides which layer it lands on, resolved once on release.
     MouseArea {
         id: dragArea
 
         anchors.fill: parent
         anchors.leftMargin: 8
         anchors.rightMargin: 8
-        enabled: !isBlank && !isTransition && !block.isLocked
-        drag.target: block
-        drag.axis: Drag.XAxis
-        drag.minimumX: -100000
-        drag.maximumX: 100000
-        property real pressX: 0
+        hoverEnabled: true
+        // Enabled even for transitions and locked layers: those cannot be
+        // dragged, but they must still be clickable to select them and open
+        // their properties. Only the drag target is withheld.
+        enabled: !isBlank
+        readonly property bool movable: !block.isTransition && !block.isLocked
+        cursorShape: !movable ? Qt.PointingHandCursor : (drag.active ? Qt.ClosedHandCursor : Qt.OpenHandCursor)
+        drag.target: movable ? block : null
+        drag.axis: Drag.XAndYAxis
+        drag.minimumX: 0
+        drag.maximumX: 1000000
+        drag.minimumY: -20000
+        drag.maximumY: 20000
+        // Require a real drag before committing, so a plain click cannot nudge
+        // the element by a frame or two at high zoom.
+        property bool dragActivated: false
         property real pressGlobalY: 0
         onPressed: mouse => {
-            pressX = block.x;
             pressGlobalY = mapToItem(null, mouse.x, mouse.y).y;
+            dragActivated = false;
             block.clicked(mouse);
         }
         onDoubleClicked: block.doubleClicked()
         onPositionChanged: mouse => {
-            if (!pressed)
+            if (!pressed || !movable)
                 return;
-            const globalY = mapToItem(null, mouse.x, mouse.y).y;
-            block.layerHoverDelta(Math.round((globalY - pressGlobalY) / block.rowHeight));
-        }
-        onReleased: mouse => {
-            const deltaFrames = Math.round((block.x - pressX) / multitrack.scaleFactor);
+            if (drag.active) {
+                dragActivated = true;
+                if (block.snapFrame) {
+                    const raw = block.x / multitrack.scaleFactor;
+                    const snapped = block.snapFrame(raw, block.clipDuration, block.trackIndex, block.clipIndex);
+                    block.x = snapped * multitrack.scaleFactor;
+                }
+            }
             const globalY = mapToItem(null, mouse.x, mouse.y).y;
             const layerDelta = Math.round((globalY - pressGlobalY) / block.rowHeight);
-            block.moveCommitted(deltaFrames, layerDelta);
+            block.layerHoverDelta(layerDelta);
+            if (dragActivated)
+                block.dragPreview(Math.max(0, Math.round(block.x / multitrack.scaleFactor)), layerDelta);
+        }
+        onReleased: mouse => {
+            const globalY = mapToItem(null, mouse.x, mouse.y).y;
+            const layerDelta = Math.round((globalY - pressGlobalY) / block.rowHeight);
+            const newStart = Math.max(0, Math.round(block.x / multitrack.scaleFactor));
+            const wasDragged = dragActivated;
+            dragActivated = false;
+            block.layerHoverDelta(0);
+            block.dragEnded();
+            if (!wasDragged)
+                return;
+            if (newStart === block.clipStart && layerDelta === 0)
+                return;
+            block.moveCommitted(newStart, layerDelta);
+        }
+        onCanceled: {
+            dragActivated = false;
+            block.layerHoverDelta(0);
+            block.dragEnded();
         }
     }
 
     Shotcut.HoverTip {
-        text: block.clipName
+        text: block.displayName
     }
 }

@@ -4946,12 +4946,16 @@ void TimelineDock::dragEnterEvent(QDragEnterEvent *event)
     if (event->mimeData()->hasFormat(Mlt::XmlMimeType)) {
         MLT.pause();
         event->acceptProposedAction();
+        emit draggingInView(QPointF(m_quickView.mapFrom(this, event->position().toPoint())),
+                            event->mimeData()->text().toInt());
     }
 }
 
 void TimelineDock::dragMoveEvent(QDragMoveEvent *event)
 {
     emit dragging(event->position(), event->mimeData()->text().toInt());
+    emit draggingInView(QPointF(m_quickView.mapFrom(this, event->position().toPoint())),
+                        event->mimeData()->text().toInt());
 }
 
 void TimelineDock::dragLeaveEvent(QDragLeaveEvent *event)

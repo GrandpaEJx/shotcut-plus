@@ -105,6 +105,11 @@ signals:
     void loopChanged();
     void clipOpened(Mlt::Producer *producer);
     void dragging(const QPointF &pos, int duration);
+    // Same drag, but with the position mapped into the QML view's coordinate
+    // space. The layer timeline uses this so its drop hint does not depend on
+    // QQuickWidget forwarding drag events into the QML scene, which is not
+    // reliable on every platform/compositor.
+    void draggingInView(const QPointF &pos, int duration);
     void dropped();
     void dropAccepted(const QString &xml);
     void gainChanged(double gain);
