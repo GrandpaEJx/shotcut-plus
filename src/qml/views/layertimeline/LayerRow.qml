@@ -124,9 +124,11 @@ Item {
             }
             onDragEnded: layerRow.dragPreviewEnded()
             onTrimInRequested: delta => {
-                // Dragging a transition's left edge outwards lengthens it.
+                // delta is already "positive shrinks" (dragging the left edge
+                // rightward shrinks the transition), matching resizeTransition's
+                // own convention, so it is passed through unchanged.
                 if (blockItem.isTransition) {
-                    layerRow.resizeTransitionBy(blockItem.clipIndex, -delta);
+                    layerRow.resizeTransitionBy(blockItem.clipIndex, delta);
                     return;
                 }
                 timeline.trimClipIn(layerRow.trackIndex, blockItem.clipIndex, blockItem.clipIndex, delta, false, false);

@@ -142,10 +142,18 @@ Rectangle {
     MouseArea {
         id: trimInArea
 
+        // Above dragArea (declared later, below) so this handle's cursor and
+        // clicks always win at the very edge, the same guarantee Clip.qml gets
+        // by nesting its trim handles inside overlay Rectangles on top.
+        z: 2
         anchors.left: parent.left
         anchors.top: parent.top
         anchors.bottom: parent.bottom
-        width: 8
+        // Wider than dragArea's 8px exclusion margin on purpose: the extra
+        // overlap is safe now that z puts this handle on top, and it makes the
+        // resize cursor much easier to land than an exact 8px sliver.
+        width: 12
+        hoverEnabled: true
         cursorShape: Qt.SizeHorCursor
         // Transitions are trimmable (that resizes the crossfade) but not movable.
         enabled: !isBlank && !block.isLocked
@@ -172,14 +180,38 @@ Rectangle {
         }
     }
 
+    // Grip shown once selected (or on direct hover) so it is obvious the edges
+    // can be grabbed to expand/collapse the element's duration.
+    Rectangle {
+        anchors.left: parent.left
+        anchors.leftMargin: 3
+        anchors.verticalCenter: parent.verticalCenter
+        width: 4
+        height: parent.height * 0.55
+        radius: 2
+        visible: trimInArea.enabled && (block.selected || trimInArea.containsMouse)
+        color: trimInArea.containsMouse ? '#FFFFFF' : Qt.rgba(1, 1, 1, 0.65)
+        opacity: visible ? 1 : 0
+
+        Behavior on opacity {
+            NumberAnimation {
+                duration: 90
+            }
+        }
+    }
+
     // Right edge trim handle.
     MouseArea {
         id: trimOutArea
 
+        // Above dragArea for the same reason as trimInArea above.
+        z: 2
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.bottom: parent.bottom
-        width: 8
+        // See trimInArea above: wider than dragArea's margin on purpose.
+        width: 12
+        hoverEnabled: true
         cursorShape: Qt.SizeHorCursor
         // Transitions are trimmable (that resizes the crossfade) but not movable.
         enabled: !isBlank && !block.isLocked
@@ -193,7 +225,10 @@ Rectangle {
             if (!pressed)
                 return;
             const sceneX = mapToItem(null, mouse.x, mouse.y).x;
-            const delta = Math.round((sceneX - lastSceneX) / multitrack.scaleFactor);
+            // Trim/resize deltas are "positive shrinks" by convention (see
+            // trimClipOut/resizeTransition), so dragging this edge to the
+            // right (growing the block) must yield a negative delta.
+            const delta = Math.round((lastSceneX - sceneX) / multitrack.scaleFactor);
             if (delta !== 0) {
                 block.trimOutRequested(delta);
                 lastSceneX = sceneX;
@@ -203,6 +238,24 @@ Rectangle {
         onReleased: {
             if (trimmed)
                 block.trimCommitted();
+        }
+    }
+
+    Rectangle {
+        anchors.right: parent.right
+        anchors.rightMargin: 3
+        anchors.verticalCenter: parent.verticalCenter
+        width: 4
+        height: parent.height * 0.55
+        radius: 2
+        visible: trimOutArea.enabled && (block.selected || trimOutArea.containsMouse)
+        color: trimOutArea.containsMouse ? '#FFFFFF' : Qt.rgba(1, 1, 1, 0.65)
+        opacity: visible ? 1 : 0
+
+        Behavior on opacity {
+            NumberAnimation {
+                duration: 90
+            }
         }
     }
 
