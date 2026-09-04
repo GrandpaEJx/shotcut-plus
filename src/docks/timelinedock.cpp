@@ -407,6 +407,10 @@ TimelineDock::TimelineDock(QWidget *parent)
         emit setZoom(value / 100.0);
     });
     connect(&m_model, &MultitrackModel::scaleFactorChanged, zoomSlider, [=]() {
+        // Skip updating the slider while the user is dragging it — the
+        // valueChanged handler already emitted setZoom for each step.
+        if (zoomSlider->isSliderDown())
+            return;
         double value = round(pow(m_model.scaleFactor() - 0.01, 1.0 / 3.0) * 100.0);
         zoomSlider->blockSignals(true);
         zoomSlider->setValue(value);
