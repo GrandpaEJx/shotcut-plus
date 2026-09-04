@@ -123,6 +123,8 @@ Item {
             mltService: typeof model.mlt_service !== 'undefined' ? model.mlt_service : ''
             clipStart: typeof model.start !== 'undefined' ? model.start : 0
             clipDuration: typeof model.duration !== 'undefined' ? model.duration : 0
+            isClipLocked: typeof model.clipLocked !== 'undefined' ? model.clipLocked : false
+            clipColorTag: typeof model.clipColor !== 'undefined' ? model.clipColor : ''
             selected: Logic.selectionContains(layerRow.trackIndex, index)
 
             onClicked: mouse => {
@@ -138,7 +140,7 @@ Item {
             onDragPreview: (startFrame, layerDelta) => {
                 const zone = layerRow.newTrackZoneFor(layerDelta);
                 const target = zone !== '' ? layerRow.trackIndex + layerDelta : layerRow.resolveTargetTrack(layerDelta);
-                layerRow.dragPreviewChanged(startFrame, blockItem.clipDuration, target, blockItem.typeColor, blockItem.clipStart, layerRow.trackIndex, zone);
+                layerRow.dragPreviewChanged(startFrame, blockItem.clipDuration, target, blockItem.displayColor, blockItem.clipStart, layerRow.trackIndex, zone);
             }
             onDragEnded: layerRow.dragPreviewEnded()
             onTrimInRequested: delta => {

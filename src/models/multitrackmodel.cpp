@@ -406,6 +406,14 @@ QVariant MultitrackModel::data(const QModelIndex &index, int role) const
                         return info->cut->get_int(kShotcutGroupProperty);
                     else
                         return -1;
+                case ClipColorRole:
+                    if (info->cut->property_exists(kShotcutClipColorProperty))
+                        return QString::fromUtf8(info->cut->get(kShotcutClipColorProperty));
+                    else
+                        return QString();
+                case IsClipLockedRole:
+                    return info->cut->property_exists(kShotcutClipLockProperty)
+                           && info->cut->get_int(kShotcutClipLockProperty);
                 case GainEnabledRole:
                 case GainRole: {
                     QScopedPointer<Mlt::Filter> filter(getFilter("audioGain", info->producer));
@@ -578,6 +586,8 @@ QHash<int, QByteArray> MultitrackModel::roleNames() const
     roles[GroupRole] = "group";
     roles[GainRole] = "gain";
     roles[GainEnabledRole] = "gainEnabled";
+    roles[ClipColorRole] = "clipColor";
+    roles[IsClipLockedRole] = "clipLocked";
     return roles;
 }
 
@@ -3565,6 +3575,72 @@ int MultitrackModel::clipStart(int trackIndex, int clipIndex)
 {
     auto info = getClipInfo(trackIndex, clipIndex);
     return info ? info->start : -1;
+}
+
+/*!
+    \brief Returns whether the clip at (\a trackIndex, \a clipIndex) is individually
+    locked, independent of whether its track is locked.
+*/
+
+bool MultitrackModel::isClipLocked(int trackIndex, int clipIndex) const
+{
+    if (clipIndex < 0 || trackIndex < 0 || trackIndex >= trackList().size())
+        return false;
+    int i = trackList().at(trackIndex).mlt_index;
+    QScopedPointer<Mlt::Producer> track(tractor()->track(i));
+    if (!track)
+        return false;
+    Mlt::Playlist playlist(*track);
+    if (clipIndex >= playlist.count())
+        return false;
+    QScopedPointer<Mlt::ClipInfo> info(playlist.clip_info(clipIndex));
+    return info && info->cut && info->cut->property_exists(kShotcutClipLockProperty)
+           && info->cut->get_int(kShotcutClipLockProperty);
+}
+
+/*!
+    \qmlmethod void MultitrackModel::setClipColor(int trackIndex, int clipIndex, string color)
+    \brief Tags the clip at (\a trackIndex, \a clipIndex) with \a color (e.g. "#RRGGBB"),
+    overriding its normal type-based color in the layer timeline. An empty \a color
+    clears the tag.
+*/
+
+void MultitrackModel::setClipColor(int trackIndex, int clipIndex, const QString &color)
+{
+    auto info = getClipInfo(trackIndex, clipIndex);
+    if (!info || !info->cut)
+        return;
+    if (color.isEmpty())
+        info->cut->Mlt::Properties::clear(kShotcutClipColorProperty);
+    else
+        info->cut->set(kShotcutClipColorProperty, color.toUtf8().constData());
+    QModelIndex modelIndex = createIndex(clipIndex, 0, trackIndex);
+    QVector<int> roles;
+    roles << ClipColorRole;
+    emit dataChanged(modelIndex, modelIndex, roles);
+    emit modified();
+}
+
+/*!
+    \qmlmethod void MultitrackModel::setClipLock(int trackIndex, int clipIndex, bool lock)
+    \brief Locks (\a lock = \c true) or unlocks the clip at (\a trackIndex, \a clipIndex)
+    individually, so it resists moving/trimming even while its track is unlocked.
+*/
+
+void MultitrackModel::setClipLock(int trackIndex, int clipIndex, bool lock)
+{
+    auto info = getClipInfo(trackIndex, clipIndex);
+    if (!info || !info->cut)
+        return;
+    if (lock)
+        info->cut->set(kShotcutClipLockProperty, 1);
+    else
+        info->cut->Mlt::Properties::clear(kShotcutClipLockProperty);
+    QModelIndex modelIndex = createIndex(clipIndex, 0, trackIndex);
+    QVector<int> roles;
+    roles << IsClipLockedRole;
+    emit dataChanged(modelIndex, modelIndex, roles);
+    emit modified();
 }
 
 QString MultitrackModel::getTrackName(int trackIndex)

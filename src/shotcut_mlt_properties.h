@@ -55,6 +55,8 @@
 #define kShotcutAnimOutProperty "shotcut:animOut"
 #define kShotcutMarkersProperty "shotcut:markers"
 #define kShotcutGroupProperty "shotcut:group"
+#define kShotcutClipColorProperty "shotcut:clipColor"
+#define kShotcutClipLockProperty "shotcut:clipLock"
 // Shotcut's VUI (video user interface) components set this so that glwidget can
 // hide the VUI when the play head is not over the clip with the current filter.
 #define kShotcutVuiMetaProperty "meta.shotcut.vui"

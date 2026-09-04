@@ -35,6 +35,10 @@ Rectangle {
     property int clipDuration: 0
     property bool selected: false
     property bool isLocked: false
+    // Per-element lock/color tag, independent of the track-level isLocked
+    // above -- set from the right-click menu (see ClipMenu below).
+    property bool isClipLocked: false
+    property string clipColorTag: ''
     property real rowHeight: 56
     // Optional function(frame, duration, skipTrack, skipClip) -> snapped frame,
     // supplied by LayerTimeline. Null disables snapping.
@@ -71,6 +75,10 @@ Rectangle {
             return '#C97ABF';
         return '#2D9CC4';
     }
+    // A user-chosen color tag wins over the type color everywhere the block
+    // is drawn, but typeColor itself stays available (e.g. for the badge
+    // glyph background elsewhere) since it reflects the element's real kind.
+    readonly property color displayColor: clipColorTag !== '' ? clipColorTag : typeColor
     readonly property string typeGlyph: {
         if (elementType === 'transition')
             return '⇄';
@@ -103,13 +111,13 @@ Rectangle {
     height: rowHeight - 10
     radius: 8
     visible: !isBlank
-    color: dragArea.containsMouse && !dragArea.drag.active ? Qt.lighter(typeColor, 1.12) : typeColor
-    // Locked layers read as dimmed, matching that their blocks do not respond.
-    // While dragging, the block is the thing under your cursor and the ghost
-    // outline is the real destination, so the block fades back.
-    opacity: block.isLocked ? 0.5 : (dragArea.drag.active ? 0.45 : 1)
+    color: dragArea.containsMouse && !dragArea.drag.active ? Qt.lighter(displayColor, 1.12) : displayColor
+    // Locked layers/elements read as dimmed, matching that their blocks do not
+    // respond. While dragging, the block is the thing under your cursor and the
+    // ghost outline is the real destination, so the block fades back.
+    opacity: (block.isLocked || block.isClipLocked) ? 0.5 : (dragArea.drag.active ? 0.45 : 1)
     border.width: selected ? 2 : 1
-    border.color: selected ? '#FFFFFF' : Qt.darker(typeColor, 1.4)
+    border.color: selected ? '#FFFFFF' : Qt.darker(displayColor, 1.4)
     clip: true
     z: dragArea.drag.active ? 100 : 1
 
@@ -156,7 +164,7 @@ Rectangle {
         hoverEnabled: true
         cursorShape: Qt.SizeHorCursor
         // Transitions are trimmable (that resizes the crossfade) but not movable.
-        enabled: !isBlank && !block.isLocked
+        enabled: !isBlank && !block.isLocked && !block.isClipLocked
         property real lastSceneX: 0
         property bool trimmed: false
         onPressed: mouse => {
@@ -214,7 +222,7 @@ Rectangle {
         hoverEnabled: true
         cursorShape: Qt.SizeHorCursor
         // Transitions are trimmable (that resizes the crossfade) but not movable.
-        enabled: !isBlank && !block.isLocked
+        enabled: !isBlank && !block.isLocked && !block.isClipLocked
         property real lastSceneX: 0
         property bool trimmed: false
         onPressed: mouse => {
@@ -275,8 +283,8 @@ Rectangle {
         id: transitionComponent
 
         Shotcut.TimelineTransition {
-            colorA: block.typeColor
-            colorB: block.selected ? Qt.darker(block.typeColor) : Qt.lighter(block.typeColor)
+            colorA: block.displayColor
+            colorB: block.selected ? Qt.darker(block.displayColor) : Qt.lighter(block.displayColor)
         }
     }
 
@@ -314,12 +322,13 @@ Rectangle {
         anchors.fill: parent
         anchors.leftMargin: 8
         anchors.rightMargin: 8
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
         hoverEnabled: true
         // Enabled even for transitions and locked layers: those cannot be
         // dragged, but they must still be clickable to select them and open
         // their properties. Only the drag target is withheld.
         enabled: !isBlank
-        readonly property bool movable: !block.isTransition && !block.isLocked
+        readonly property bool movable: !block.isTransition && !block.isLocked && !block.isClipLocked
         cursorShape: !movable ? Qt.PointingHandCursor : (drag.active ? Qt.ClosedHandCursor : Qt.OpenHandCursor)
         drag.target: movable ? block : null
         drag.axis: Drag.XAndYAxis
@@ -334,11 +343,18 @@ Rectangle {
         onPressed: mouse => {
             pressGlobalY = mapToItem(null, mouse.x, mouse.y).y;
             dragActivated = false;
+            // block.clicked() -> selectBlock() already leaves an existing
+            // multi-selection alone, so right-clicking a selected element
+            // does not collapse the group before the menu sees it.
             block.clicked(mouse);
         }
         onDoubleClicked: block.doubleClicked()
+        onClicked: mouse => {
+            if (mouse.button === Qt.RightButton)
+                contextMenu.popup();
+        }
         onPositionChanged: mouse => {
-            if (!pressed || !movable)
+            if (!pressed || !movable || (mouse.buttons & Qt.RightButton))
                 return;
             if (drag.active) {
                 dragActivated = true;
@@ -373,6 +389,28 @@ Rectangle {
             block.layerHoverDelta(0);
             block.dragEnded();
         }
+    }
+
+    // A small pin badge in the corner is the only always-visible cue that this
+    // specific element (not its whole track) is locked, since the dimmed
+    // opacity above is shared with track-level locking.
+    Image {
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.margins: 3
+        width: 12
+        height: 12
+        visible: block.isClipLocked
+        source: 'qrc:///icons/oxygen/32x32/status/object-locked.png'
+        fillMode: Image.PreserveAspectFit
+    }
+
+    Shotcut.ClipMenu {
+        id: contextMenu
+
+        target: timeline
+        trackIndex: block.trackIndex
+        clipIndex: block.clipIndex
     }
 
     Shotcut.HoverTip {

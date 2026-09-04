@@ -82,6 +82,7 @@ public:
     void selectClipUnderPlayhead();
     int centerOfClip(int trackIndex, int clipIndex);
     bool isTrackLocked(int trackIndex) const;
+    Q_INVOKABLE bool isClipLocked(int trackIndex, int clipIndex) const;
     void trimClipAtPlayhead(TrimLocation location, bool ripple);
     Q_INVOKABLE bool isMultitrackSelected() const { return m_selection.isMultitrackSelected; }
     Q_INVOKABLE int selectedTrack() const { return m_selection.selectedTrack; }
@@ -161,6 +162,8 @@ public slots:
     void toggleOtherTracksHidden(int trackIndex);
     void setTrackComposite(int trackIndex, bool composite);
     void setTrackLock(int trackIndex, bool lock);
+    void setClipColor(int trackIndex, int clipIndex, const QString &color);
+    void setClipLock(int trackIndex, int clipIndex, bool lock);
     bool setTrackGain(int trackIndex, double gain);
     bool moveClip(int fromTrack, int toTrack, int clipIndex, int position, bool ripple);
     bool moveClipToNewTrack(int fromTrack, int clipIndex, int position, bool above);

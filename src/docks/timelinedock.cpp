@@ -2251,6 +2251,17 @@ bool TimelineDock::isTrackLocked(int trackIndex) const
     return track->get_int(kTrackLockProperty);
 }
 
+/*!
+    \qmlmethod bool TimelineDock::isClipLocked(int trackIndex, int clipIndex)
+    \brief Returns whether the clip at (\a trackIndex, \a clipIndex) is individually
+    locked, independent of whether its track is locked.
+*/
+
+bool TimelineDock::isClipLocked(int trackIndex, int clipIndex) const
+{
+    return m_model.isClipLocked(trackIndex, clipIndex);
+}
+
 void TimelineDock::trimClipAtPlayhead(TrimLocation location, bool ripple)
 {
     int trackIndex = currentTrack(), clipIndex = -1;
@@ -2867,6 +2878,10 @@ void TimelineDock::remove(int trackIndex, int clipIndex, bool ignoreTransition)
     }
     if (trackIndex < 0 || clipIndex < 0)
         return;
+    if (isClipLocked(trackIndex, clipIndex)) {
+        emit showStatusMessage(tr("Clip is locked."));
+        return;
+    }
 
     if (!ignoreTransition && isTransition(trackIndex, clipIndex)) {
         MAIN.undoStack()->beginMacro(tr("Ripple delete transition"));
@@ -2923,6 +2938,10 @@ void TimelineDock::lift(int trackIndex, int clipIndex, bool ignoreTransition)
     }
     if (trackIndex < 0 || clipIndex < 0)
         return;
+    if (isClipLocked(trackIndex, clipIndex)) {
+        emit showStatusMessage(tr("Clip is locked."));
+        return;
+    }
 
     if (!ignoreTransition && isTransition(trackIndex, clipIndex)) {
         MAIN.undoStack()->beginMacro(tr("Lift transition"));
@@ -4006,6 +4025,29 @@ void TimelineDock::setTrackLock(int trackIndex, bool lock)
 }
 
 /*!
+    \qmlmethod void TimelineDock::setClipLock(int trackIndex, int clipIndex, bool lock)
+    \brief Locks (\a lock = \c true) or unlocks the clip at (\a trackIndex, \a clipIndex)
+    individually, so it resists moving/trimming even while its track is unlocked.
+*/
+
+void TimelineDock::setClipLock(int trackIndex, int clipIndex, bool lock)
+{
+    MAIN.undoStack()->push(new Timeline::LockClipCommand(m_model, trackIndex, clipIndex, lock));
+}
+
+/*!
+    \qmlmethod void TimelineDock::setClipColor(int trackIndex, int clipIndex, string color)
+    \brief Tags the clip at (\a trackIndex, \a clipIndex) with \a color (e.g. "#RRGGBB"),
+    overriding its normal type-based color in the layer timeline. An empty \a color
+    clears the tag.
+*/
+
+void TimelineDock::setClipColor(int trackIndex, int clipIndex, const QString &color)
+{
+    MAIN.undoStack()->push(new Timeline::SetClipColorCommand(m_model, trackIndex, clipIndex, color));
+}
+
+/*!
     \qmlmethod bool TimelineDock::moveClip(int fromTrack, int toTrack, int clipIndex, int position, bool ripple)
     \brief Moves the clip at (\a fromTrack, \a clipIndex) to \a position on \a toTrack.
     If \a ripple is \c true, downstream clips shift to fill the gap. Returns \c true on success.
@@ -4013,6 +4055,10 @@ void TimelineDock::setTrackLock(int trackIndex, bool lock)
 
 bool TimelineDock::moveClip(int fromTrack, int toTrack, int clipIndex, int position, bool ripple)
 {
+    if (isClipLocked(fromTrack, clipIndex)) {
+        emit showStatusMessage(tr("Clip is locked."));
+        return false;
+    }
     if (toTrack >= 0 && clipIndex >= 0) {
         int length = 0;
         int i = m_model.trackList().at(fromTrack).mlt_index;
@@ -4085,6 +4131,10 @@ bool TimelineDock::moveClip(int fromTrack, int toTrack, int clipIndex, int posit
 */
 bool TimelineDock::moveClipToNewTrack(int fromTrack, int clipIndex, int position, bool above)
 {
+    if (isClipLocked(fromTrack, clipIndex)) {
+        emit showStatusMessage(tr("Clip is locked."));
+        return false;
+    }
     MAIN.undoStack()->beginMacro(tr("Add Track and Move Clip"));
     int newTrack = above ? addVideoTrack() : addAudioTrack();
     // addVideoTrack() always prepends the new track at row 0, which shifts every
@@ -4130,6 +4180,10 @@ void TimelineDock::onClipMoved(int fromTrack, int toTrack, int clipIndex, int po
 bool TimelineDock::trimClipIn(
     int trackIndex, int clipIndex, int oldClipIndex, int delta, bool ripple, bool roll)
 {
+    if (isClipLocked(trackIndex, clipIndex)) {
+        emit showStatusMessage(tr("Clip is locked."));
+        return false;
+    }
     emit trimStarted();
     if (dynamic_cast<Timeline::RemoveTransitionByTrimInCommand *>(m_trimCommand.get())) {
         if (delta < 0) {
@@ -4237,6 +4291,10 @@ bool TimelineDock::trimClipIn(
 
 bool TimelineDock::trimClipOut(int trackIndex, int clipIndex, int delta, bool ripple, bool roll)
 {
+    if (isClipLocked(trackIndex, clipIndex)) {
+        emit showStatusMessage(tr("Clip is locked."));
+        return false;
+    }
     emit trimStarted();
     if (dynamic_cast<Timeline::RemoveTransitionByTrimOutCommand *>(m_trimCommand.get())) {
         if (delta < 0) {

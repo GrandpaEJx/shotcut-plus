@@ -92,6 +92,8 @@ public:
         GroupRole,         /// clip only
         GainRole,          /// track, clip
         GainEnabledRole,   /// track, clip
+        ClipColorRole,     /// clip only
+        IsClipLockedRole,  /// clip only
     };
 
     explicit MultitrackModel(QObject *parent = 0);
@@ -146,6 +148,7 @@ public:
     QString trackTransitionService();
     bool trackLevelIndicatorSupported() const;
     bool hasAudioTracks() const;
+    bool isClipLocked(int trackIndex, int clipIndex) const;
 
 signals:
     void created();
@@ -175,6 +178,8 @@ public slots:
     void setTrackComposite(int row, bool composite);
     void setTrackLock(int row, bool lock);
     void setTrackGain(int row, double gain);
+    void setClipColor(int trackIndex, int clipIndex, const QString &color);
+    void setClipLock(int trackIndex, int clipIndex, bool lock);
     int trimClipIn(int trackIndex, int clipIndex, int delta, bool ripple, bool rippleAllTracks);
     void notifyClipIn(int trackIndex, int clipIndex);
     int trimClipOut(int trackIndex, int clipIndex, int delta, bool ripple, bool rippleAllTracks);

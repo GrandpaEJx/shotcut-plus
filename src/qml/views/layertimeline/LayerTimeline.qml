@@ -444,7 +444,7 @@ Rectangle {
                 width: sourceBlock ? Math.max(6, sourceBlock.clipDuration * multitrack.scaleFactor) : 0
                 height: root.rowHeight - 10
                 radius: 8
-                color: sourceBlock ? Qt.rgba(sourceBlock.typeColor.r, sourceBlock.typeColor.g, sourceBlock.typeColor.b, 0.28) : 'transparent'
+                color: sourceBlock ? Qt.rgba(sourceBlock.displayColor.r, sourceBlock.displayColor.g, sourceBlock.displayColor.b, 0.28) : 'transparent'
                 border.color: '#FFFFFF'
                 border.width: 2
                 z: 55

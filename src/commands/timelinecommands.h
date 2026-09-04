@@ -297,6 +297,44 @@ private:
     bool m_oldValue;
 };
 
+class LockClipCommand : public QUndoCommand
+{
+public:
+    LockClipCommand(MultitrackModel &model,
+                    int trackIndex,
+                    int clipIndex,
+                    bool value,
+                    QUndoCommand *parent = 0);
+    void redo();
+    void undo();
+
+private:
+    MultitrackModel &m_model;
+    int m_trackIndex;
+    int m_clipIndex;
+    bool m_value;
+    bool m_oldValue;
+};
+
+class SetClipColorCommand : public QUndoCommand
+{
+public:
+    SetClipColorCommand(MultitrackModel &model,
+                        int trackIndex,
+                        int clipIndex,
+                        const QString &value,
+                        QUndoCommand *parent = 0);
+    void redo();
+    void undo();
+
+private:
+    MultitrackModel &m_model;
+    int m_trackIndex;
+    int m_clipIndex;
+    QString m_value;
+    QString m_oldValue;
+};
+
 class MoveClipCommand : public QUndoCommand
 {
 public:

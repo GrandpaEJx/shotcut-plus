@@ -651,6 +651,52 @@ void LockTrackCommand::undo()
     m_model.setTrackLock(m_trackIndex, m_oldValue);
 }
 
+LockClipCommand::LockClipCommand(
+    MultitrackModel &model, int trackIndex, int clipIndex, bool value, QUndoCommand *parent)
+    : QUndoCommand(parent)
+    , m_model(model)
+    , m_trackIndex(trackIndex)
+    , m_clipIndex(clipIndex)
+    , m_value(value)
+    , m_oldValue(model.isClipLocked(trackIndex, clipIndex))
+{
+    setText(value ? QObject::tr("Lock clip") : QObject::tr("Unlock clip"));
+}
+
+void LockClipCommand::redo()
+{
+    m_model.setClipLock(m_trackIndex, m_clipIndex, m_value);
+}
+
+void LockClipCommand::undo()
+{
+    m_model.setClipLock(m_trackIndex, m_clipIndex, m_oldValue);
+}
+
+SetClipColorCommand::SetClipColorCommand(
+    MultitrackModel &model, int trackIndex, int clipIndex, const QString &value, QUndoCommand *parent)
+    : QUndoCommand(parent)
+    , m_model(model)
+    , m_trackIndex(trackIndex)
+    , m_clipIndex(clipIndex)
+    , m_value(value)
+    , m_oldValue(model.data(model.index(clipIndex, 0, model.index(trackIndex)),
+                            MultitrackModel::ClipColorRole)
+                     .toString())
+{
+    setText(QObject::tr("Set clip color"));
+}
+
+void SetClipColorCommand::redo()
+{
+    m_model.setClipColor(m_trackIndex, m_clipIndex, m_value);
+}
+
+void SetClipColorCommand::undo()
+{
+    m_model.setClipColor(m_trackIndex, m_clipIndex, m_oldValue);
+}
+
 MoveClipCommand::MoveClipCommand(
     TimelineDock &timeline, int trackDelta, int positionDelta, bool ripple, QUndoCommand *parent)
     : QUndoCommand(parent)

@@ -119,6 +119,7 @@ add_executable(shotcut WIN32 MACOSX_BUNDLE
   qmltypes/fontdialog.h qmltypes/fontdialog.cpp
   qmltypes/messagedialog.h qmltypes/messagedialog.cpp
   qmltypes/qmlapplication.cpp qmltypes/qmlapplication.h
+  qmltypes/qmlclipmenu.cpp qmltypes/qmlclipmenu.h
   qmltypes/qmleditmenu.cpp qmltypes/qmleditmenu.h
   qmltypes/qmlextension.cpp qmltypes/qmlextension.h
   qmltypes/qmlfile.cpp qmltypes/qmlfile.h

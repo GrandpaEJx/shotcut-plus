@@ -27,6 +27,7 @@
 #include "qmltypes/fontdialog.h"
 #include "qmltypes/messagedialog.h"
 #include "qmltypes/qmlapplication.h"
+#include "qmltypes/qmlclipmenu.h"
 #include "qmltypes/qmleditmenu.h"
 #include "qmltypes/qmlextension.h"
 #include "qmltypes/qmlfile.h"
@@ -78,6 +79,7 @@ void QmlUtilities::registerCommonTypes()
     qmlRegisterType<ColorPickerItem>("Shotcut.Controls", 1, 0, "ColorPickerItem");
     qmlRegisterType<ColorWheelItem>("Shotcut.Controls", 1, 0, "ColorWheelItem");
     qmlRegisterType<QmlMarkerMenu>("Shotcut.Controls", 1, 0, "MarkerMenu");
+    qmlRegisterType<QmlClipMenu>("Shotcut.Controls", 1, 0, "ClipMenu");
     qmlRegisterType<QmlEditMenu>("Shotcut.Controls", 1, 0, "EditContextMenu");
     qmlRegisterType<QmlRichTextMenu>("Shotcut.Controls", 1, 0, "RichTextMenu");
     qmlRegisterType<ColorDialog>("Shotcut.Controls", 1, 0, "ColorDialog");
