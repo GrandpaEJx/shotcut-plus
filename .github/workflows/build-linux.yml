@@ -3,16 +3,44 @@ name: build-shotcut-linux
 on:
   workflow_dispatch:
   schedule:
-    # nightly
+    # daily once — skip if no changes
     - cron: '0 8 * * *'
 
 env:
   IMAGE_NAME: mltframework/shotcut-build:qt6.10.3-ubuntu22.04
 
 jobs:
+  changes-check:
+    runs-on: ubuntu-latest
+    outputs:
+      has_changes: ${{ steps.check.outputs.has_changes }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Check for changes since last scheduled run
+        id: check
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          LAST_SHA=$(gh run list --workflow=${{ github.workflow }} --event=schedule --status=completed --limit=1 --json headSha --jq '.[0].headSha')
+          CURRENT_SHA=$(git rev-parse HEAD)
+          if [ "$LAST_SHA" = "$CURRENT_SHA" ]; then
+            echo "No changes since last scheduled run — skipping"
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Changes detected — running build"
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   build:
     runs-on: ubuntu-latest
-    if: ${{ github.repository_owner == 'mltframework' }}
+    needs: changes-check
+    if: ${{ needs.changes-check.outputs.has_changes == 'true' && github.repository_owner == 'mltframework' }}
 
     steps:
       - uses: actions/checkout@v6
