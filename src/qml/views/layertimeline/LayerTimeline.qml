@@ -326,11 +326,11 @@ Rectangle {
         // own vertical drag, so scrolling goes through the wheel and scrollbars.
         interactive: false
 
-        ScrollBar.horizontal: ScrollBar {
+        ScrollBar.horizontal: Shotcut.HorizontalScrollBar {
             policy: ScrollBar.AsNeeded
         }
 
-        ScrollBar.vertical: ScrollBar {
+        ScrollBar.vertical: Shotcut.VerticalScrollBar {
             policy: ScrollBar.AsNeeded
         }
 
@@ -554,40 +554,54 @@ Rectangle {
             border.width: 1
         }
 
-        MouseArea {
-            // Wheel only (NoButton keeps clicks and drags passing through to the
-            // blocks underneath): scroll, Ctrl+wheel zoom, Shift+wheel pan.
-            anchors.fill: parent
-            z: 70
-            acceptedButtons: Qt.NoButton
-            // Same convention as the classic timeline: a plain wheel scrolls
-            // along the timeline, Alt scrolls between layers, Ctrl zooms.
-            onWheel: wheel => {
-                const maxX = Math.max(0, tracksFlickable.contentWidth - tracksFlickable.width);
-                const maxY = Math.max(0, tracksFlickable.contentHeight - tracksFlickable.height);
-                if (wheel.modifiers & Qt.ControlModifier) {
-                    root.adjustZoom(wheel.angleDelta.y > 0 ? 1.15 : 1 / 1.15);
-                } else if (wheel.pixelDelta.x || wheel.pixelDelta.y) {
-                    // Trackpads report both axes.
-                    let x = wheel.pixelDelta.x;
-                    let y = wheel.pixelDelta.y;
-                    if (application.OS !== 'Windows' && !x && y) {
-                        x = y;
-                        y = 0;
-                    }
-                    if (!y || Math.abs(x) > 2)
-                        tracksFlickable.contentX = Logic.clamp(tracksFlickable.contentX - x, 0, maxX);
-                    tracksFlickable.contentY = Logic.clamp(tracksFlickable.contentY - y, 0, maxY);
-                } else if (wheel.modifiers & Qt.AltModifier) {
-                    tracksFlickable.contentY = Logic.clamp(tracksFlickable.contentY - Math.round(wheel.angleDelta.y / 2), 0, maxY);
-                } else {
-                    tracksFlickable.contentX = Logic.clamp(tracksFlickable.contentX - Math.round(wheel.angleDelta.y / 2), 0, maxX);
-                }
-                wheel.accepted = true;
-            }
-        }
-
         onWidthChanged: contentX = Math.max(0, Math.min(contentX, contentWidth - width))
+    }
+
+    MouseArea {
+        // Wheel only (NoButton keeps clicks and drags passing through to the
+        // blocks underneath): plain wheel scrolls layers up/down, Alt+wheel
+        // scrolls along the timeline, Ctrl+wheel zooms -- Canva/CapCut-style,
+        // since layers stack vertically here the way a design tool's layer
+        // panel does, unlike the classic timeline's single row of tracks.
+        //
+        // This must be a sibling overlay on top of tracksFlickable, not a
+        // MouseArea nested inside it -- a MouseArea inside a Flickable
+        // silently swallows wheel events even without an onWheel handler
+        // (that is how a Flickable normally protects itself from double
+        // scrolling), so a wheel MouseArea nested there never saw the
+        // event once any of its many overlapping clip MouseAreas sat above
+        // it. The classic timeline avoids this the same way: its wheel
+        // handler (scrubMouseArea) is a sibling of its Flickable too.
+        x: tracksFlickable.x
+        y: tracksFlickable.y
+        width: tracksFlickable.width
+        height: tracksFlickable.height
+        z: 70
+        acceptedButtons: Qt.NoButton
+        onWheel: wheel => {
+            const maxX = Math.max(0, tracksFlickable.contentWidth - tracksFlickable.width);
+            const maxY = Math.max(0, tracksFlickable.contentHeight - tracksFlickable.height);
+            if (wheel.modifiers & Qt.ControlModifier) {
+                root.adjustZoom(wheel.angleDelta.y > 0 ? 1.15 : 1 / 1.15);
+            } else if (wheel.pixelDelta.x || wheel.pixelDelta.y) {
+                // Trackpad / touchpad: natural two-finger scroll, both axes.
+                let x = wheel.pixelDelta.x;
+                let y = wheel.pixelDelta.y;
+                if (x)
+                    tracksFlickable.contentX = Logic.clamp(tracksFlickable.contentX - x, 0, maxX);
+                if (y)
+                    tracksFlickable.contentY = Logic.clamp(tracksFlickable.contentY - y, 0, maxY);
+            } else if (wheel.modifiers & Qt.AltModifier) {
+                // Mouse wheel + Alt: horizontal scroll (left/right).
+                const n = Math.round((application.OS === 'macOS' ? wheel.angleDelta.y : wheel.angleDelta.x) / 2);
+                tracksFlickable.contentX = Logic.clamp(tracksFlickable.contentX - n, 0, maxX);
+            } else {
+                // Mouse wheel plain: vertical scroll (up/down through layers).
+                const step = Math.round((wheel.angleDelta.y / 120) * root.rowHeight);
+                tracksFlickable.contentY = Logic.clamp(tracksFlickable.contentY - step, 0, maxY);
+            }
+            wheel.accepted = true;
+        }
     }
 
     Rectangle {

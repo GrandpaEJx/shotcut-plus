@@ -284,7 +284,7 @@ Rectangle {
                 // Non-slider scroll area for the track headers.
                 contentY: tracksFlickable.contentY
                 width: headerWidth
-                height: trackHeaders.height
+                height: trackHeaders.height + 30 // match tracksFlickable contentHeight padding
                 interactive: false
 
                 Column {
@@ -579,11 +579,6 @@ Rectangle {
                     width: root.width - headerWidth
                     height: ruler.height + subtitleBar.height
                     interactive: false
-                    // workaround to fix https://github.com/mltframework/shotcut/issues/777
-                    onContentXChanged: {
-                        if (contentX === 0)
-                            contentX = tracksFlickable.contentX;
-                    }
 
                     Ruler {
                         id: ruler
@@ -712,8 +707,7 @@ Rectangle {
                         parent: tracksFlickable.parent
                         anchors.top: tracksFlickable.top
                         anchors.left: tracksFlickable.right
-                        anchors.bottom: tracksFlickable.bottom
-                        anchors.bottomMargin: -16
+                        anchors.bottom: horizontalScrollBar.top
                     }
                 }
             }
@@ -908,9 +902,6 @@ Rectangle {
                     scrollTimer.item = clip;
                     scrollTimer.backwards = false;
                     scrollTimer.start();
-                } else if (x < 50) {
-                    tracksFlickable.contentX = 0;
-                    scrollTimer.stop();
                 } else if (x < tracksFlickable.contentX + 50) {
                     scrollTimer.item = clip;
                     scrollTimer.backwards = true;
@@ -1079,8 +1070,8 @@ Rectangle {
             let delta = backwards ? -10 : 10;
             if (item)
                 item.x += delta;
-            tracksFlickable.contentX += delta;
-            if (tracksFlickable.contentX <= 0)
+            tracksFlickable.contentX = Logic.clamp(tracksFlickable.contentX + delta, 0, Logic.scrollMax().x);
+            if ((backwards && tracksFlickable.contentX <= 0) || (!backwards && tracksFlickable.contentX >= Logic.scrollMax().x))
                 stop();
         }
     }

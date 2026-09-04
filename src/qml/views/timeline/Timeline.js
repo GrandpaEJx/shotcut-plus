@@ -165,8 +165,8 @@ function clamp(x, minimum, maximum) {
 }
 
 function scrollMax() {
-    let maxWidth = Math.max(tracksFlickable.contentWidth - tracksFlickable.width + 14, 0)
-    let maxHeight = Math.max(tracksFlickable.contentHeight - tracksFlickable.height + 14, 0)
+    let maxWidth = Math.max(tracksFlickable.contentWidth - tracksFlickable.width, 0)
+    let maxHeight = Math.max(tracksFlickable.contentHeight - tracksFlickable.height, 0)
     return Qt.point(maxWidth, maxHeight)
 }
 
@@ -183,25 +183,22 @@ function onMouseWheel(wheel) {
         }
     } else {
         // Scroll
-        if ((wheel.pixelDelta.x || wheel.pixelDelta.y) && wheel.modifiers === Qt.NoModifier) {
+        if (wheel.pixelDelta.x || wheel.pixelDelta.y) {
+            // Trackpad / touchpad: natural two-finger scroll, both axes.
             let x = wheel.pixelDelta.x
             let y = wheel.pixelDelta.y
-            if (application.OS !== 'Windows' && !x && y) {
-                x = y;
-                y = 0;
-            }
-            // Track pads provide both horizontal and vertical.
-            if (!y || Math.abs(x) > 2)
+            if (x)
                 tracksFlickable.contentX = clamp(tracksFlickable.contentX - x, 0, scrollMax().x)
-            tracksFlickable.contentY = clamp(tracksFlickable.contentY - y, 0, scrollMax().y)
+            if (y)
+                tracksFlickable.contentY = clamp(tracksFlickable.contentY - y, 0, scrollMax().y)
         } else {
-            // Vertical only mouse wheel requires modifier for vertical scroll.
+            // Mouse wheel: plain = vertical (up/down), Alt = horizontal (left/right).
             if (wheel.modifiers === Qt.AltModifier) {
                 n = Math.round((application.OS === 'macOS'? wheel.angleDelta.y : wheel.angleDelta.x) / 2)
-                tracksFlickable.contentY = clamp(tracksFlickable.contentY - n, 0, scrollMax().y)
+                tracksFlickable.contentX = clamp(tracksFlickable.contentX - n, 0, scrollMax().x)
             } else {
                 n = Math.round(wheel.angleDelta.y / 2)
-                tracksFlickable.contentX = clamp(tracksFlickable.contentX - n, 0, scrollMax().x)
+                tracksFlickable.contentY = clamp(tracksFlickable.contentY - n, 0, scrollMax().y)
             }
         }
     }
