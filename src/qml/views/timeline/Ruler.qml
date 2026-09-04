@@ -52,16 +52,17 @@ Rectangle {
 
             // right edge
             anchors.bottom: rulerTop.bottom
-            height: 18
+            height: 7
             width: 1
-            color: activePalette.windowText
+            color: activePalette.mid
             x: tickIndex * rulerTop.tickSpacing
 
             Label {
                 anchors.left: parent.right
-                anchors.leftMargin: 2
+                anchors.leftMargin: 4
                 anchors.bottom: parent.bottom
-                anchors.bottomMargin: 2
+                anchors.bottomMargin: 8
+                font.pixelSize: 10
                 color: activePalette.windowText
                 text: application.clockFromFrames(parent.tickIndex * rulerTop.intervalFrames + 2).substr(0, 8)
             }

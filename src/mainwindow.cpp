@@ -64,6 +64,7 @@
 #include "screencapture/screencapture.h"
 #include "settings.h"
 #include "shotcut_mlt_properties.h"
+#include "ui/theme/moderntheme.h"
 #include "util.h"
 #include "videowidget.h"
 #include "widgets/alsawidget.h"
@@ -1585,12 +1586,18 @@ void MainWindow::setupSettingsMenu()
     group->addAction(ui->actionSystemFusion);
     group->addAction(ui->actionFusionDark);
     group->addAction(ui->actionFusionLight);
+    group->addAction(ui->actionModernDark);
+    group->addAction(ui->actionModernLight);
     if (Settings.theme() == "dark")
         ui->actionFusionDark->setChecked(true);
     else if (Settings.theme() == "light")
         ui->actionFusionLight->setChecked(true);
     else if (Settings.theme() == "system-fusion")
         ui->actionSystemFusion->setChecked(true);
+    else if (Settings.theme() == "modern-dark")
+        ui->actionModernDark->setChecked(true);
+    else if (Settings.theme() == "modern-light")
+        ui->actionModernLight->setChecked(true);
     else
         ui->actionSystemTheme->setChecked(true);
 #else
@@ -4155,6 +4162,8 @@ static const auto kThemeDark = QStringLiteral("dark");
 static const auto kThemeLight = QStringLiteral("light");
 static const auto kThemeSystem = QStringLiteral("system");
 static const auto kThemeSystemFusion = QStringLiteral("system-fusion");
+static const auto kThemeModernDark = QStringLiteral("modern-dark");
+static const auto kThemeModernLight = QStringLiteral("modern-light");
 static const auto kStyleFusion = QStringLiteral("Fusion");
 static const auto kIconsOxygen = QStringLiteral("oxygen");
 static const auto kIconsDarkOxygen = QStringLiteral("oxygen-dark");
@@ -4257,6 +4266,20 @@ void MainWindow::changeTheme(const QString &theme)
             "QTabBar::tab:bottom:!selected { margin-bottom: 2px; }"));
         QIcon::setThemeName(kThemeLight);
         ::qputenv("QT_QUICK_CONTROLS_CONF", ":/resources/qtquickcontrols2-light.conf");
+    } else if (mytheme == kThemeModernDark || mytheme == kThemeModernLight) {
+        // New flat, single-accent theme (see src/ui/theme/). Additive: the
+        // legacy dark/light/system branches above and below are untouched.
+        const bool dark = (mytheme == kThemeModernDark);
+        QApplication::setStyle(kStyleFusion);
+        QApplication::setPalette(dark ? ModernTheme::darkPalette() : ModernTheme::lightPalette());
+        qApp->setStyleSheet(ModernTheme::styleSheet(dark));
+        // modern-dark/modern-light (icons/modern-dark, icons/modern-light) are
+        // vector icon themes that Inherit= the existing dark/light PNG themes,
+        // so any icon name not yet redrawn as SVG falls back automatically.
+        QIcon::setThemeName(dark ? QStringLiteral("modern-dark") : QStringLiteral("modern-light"));
+        ::qputenv("QT_QUICK_CONTROLS_CONF",
+                  dark ? ":/resources/qtquickcontrols2-dark.conf"
+                       : ":/resources/qtquickcontrols2-light.conf");
     } else {
         // Use a macro since this can change on some OS after setStyle(Fusion)
 #define isDark (QGuiApplication::palette().color(QPalette::Text).lightnessF() > 0.5f)
@@ -5301,6 +5324,18 @@ void MainWindow::on_actionFusionDark_triggered()
 void MainWindow::on_actionFusionLight_triggered()
 {
     Settings.setTheme("light");
+    restartAfterChangeTheme();
+}
+
+void MainWindow::on_actionModernDark_triggered()
+{
+    Settings.setTheme("modern-dark");
+    restartAfterChangeTheme();
+}
+
+void MainWindow::on_actionModernLight_triggered()
+{
+    Settings.setTheme("modern-light");
     restartAfterChangeTheme();
 }
 

@@ -44,6 +44,9 @@ Rectangle {
     property bool _blockTrackGainUpdate: true
     property real _maximumGainDb: 10
     property real _minimumGainDb: -70
+    // Track-type accent used for the selection bar/tint (matches Clip.qml's audioColor).
+    readonly property color audioAccent: '#5A9B72'
+    readonly property color trackAccent: isVideo ? root.shotcutBlue : audioAccent
 
     signal clicked
 
@@ -245,9 +248,9 @@ Rectangle {
 
     Component.onCompleted: _syncTrackGain()
 
-    color: selected ? selectedTrackColor : (index % 2) ? activePalette.alternateBase : activePalette.base
-    border.color: selected ? 'red' : 'transparent'
-    border.width: selected ? 1 : 0
+    color: (index % 2) ? activePalette.alternateBase : activePalette.base
+    border.color: 'transparent'
+    border.width: 0
     clip: true
     state: 'normal'
     states: [
@@ -257,7 +260,7 @@ Rectangle {
 
             PropertyChanges {
                 target: trackHeadRoot
-                color: isVideo ? root.shotcutBlue : 'darkseagreen'
+                color: Qt.rgba(trackAccent.r, trackAccent.g, trackAccent.b, 0.28)
             }
         },
         State {
@@ -279,6 +282,17 @@ Rectangle {
             }
         }
     ]
+
+    // Slim accent bar on the left edge, AE/Premiere-style track affordance,
+    // shown instead of a heavy full-row fill when the track is selected or current.
+    Rectangle {
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        width: (trackHeadRoot.selected || trackHeadRoot.current) ? 3 : 0
+        color: trackHeadRoot.trackAccent
+        visible: width > 0
+    }
     transitions: [
         Transition {
             to: '*'
@@ -304,13 +318,13 @@ Rectangle {
     Column {
         id: trackHeadColumn
 
-        spacing: trackHeadRoot.stackedHeaderLayout ? 1 : 2
+        spacing: trackHeadRoot.stackedHeaderLayout ? 1 : 1
 
         anchors {
             top: parent.top
             left: parent.left
             right: parent.right
-            leftMargin: 8
+            leftMargin: 6
             rightMargin: trackHeadRoot.stackedHeaderLayout ? 4 : 0
             topMargin: trackHeadRoot.stackedHeaderLayout ? 2 : 0
             bottomMargin: trackHeadRoot.stackedHeaderLayout ? 4 : 0
@@ -354,7 +368,8 @@ Rectangle {
                     color: activePalette.windowText
                     elide: Qt.ElideRight
                     leftPadding: 4
-                    topPadding: 3
+                    topPadding: 2
+                    font.pixelSize: 11
                     width: nameEdit.width
                 }
             }
@@ -364,6 +379,8 @@ Rectangle {
 
                 visible: focus
                 width: parent.width
+                implicitHeight: 20
+                font.pixelSize: 11
                 selectByMouse: true
                 text: trackName
                 onEditingFinished: {
@@ -376,19 +393,19 @@ Rectangle {
 
             RowLayout {
             id: trackHeadButtons
-            spacing: 8
+            spacing: 2
 
             Item {
                 Layout.alignment: Qt.AlignVCenter
-                width: 14
-                height: 14
+                width: 10
+                height: 10
                 visible: trackHeadRoot.trackAudioLevelSupported && !trackHeadRoot.inlineAudioControlsEnabled
 
                 Rectangle {
                     anchors.centerIn: parent
-                    width: 10
-                    height: 10
-                    radius: 5
+                    width: 7
+                    height: 7
+                    radius: 3.5
                     antialiasing: true
                     color: trackHeadRoot._audioLevelColor(trackHeadRoot._indicatorAudioLevel())
                     border.color: activePalette.shadow
@@ -417,9 +434,11 @@ Rectangle {
 
                 icon.name: isLocked ? 'object-locked' : 'object-unlocked'
                 icon.source: isLocked ? 'qrc:///icons/oxygen/32x32/status/object-locked.png' : 'qrc:///icons/oxygen/32x32/status/object-unlocked.png'
-                icon.width: 16
-                icon.height: 16
-                padding: 1
+                icon.width: 14
+                icon.height: 14
+                implicitWidth: 20
+                implicitHeight: 20
+                padding: 0
                 focusPolicy: Qt.NoFocus
                 onClicked: timeline.setTrackLock(index, !isLocked)
                 transformOrigin: Item.Center
@@ -454,9 +473,11 @@ Rectangle {
 
                 icon.name: isMute ? 'audio-volume-muted' : 'player-volume'
                 icon.source: isMute ? 'qrc:///icons/oxygen/32x32/status/audio-volume-muted.png' : 'qrc:///icons/oxygen/32x32/actions/player-volume.png'
-                icon.width: 16
-                icon.height: 16
-                padding: 1
+                icon.width: 14
+                icon.height: 14
+                implicitWidth: 20
+                implicitHeight: 20
+                padding: 0
                 focusPolicy: Qt.NoFocus
 
                 MouseArea {
@@ -604,9 +625,11 @@ Rectangle {
                     visible: isVideo
                     icon.name: isHidden ? 'layer-visible-off' : 'layer-visible-on'
                     icon.source: isHidden ? 'qrc:///icons/oxygen/32x32/actions/layer-visible-off.png' : 'qrc:///icons/oxygen/32x32/actions/layer-visible-on.png'
-                    icon.width: 16
-                    icon.height: 16
-                    padding: 1
+                    icon.width: 14
+                    icon.height: 14
+                    implicitWidth: 20
+                    implicitHeight: 20
+                    padding: 0
                     focusPolicy: Qt.NoFocus
 
                     MouseArea {
@@ -637,9 +660,11 @@ Rectangle {
                     visible: isFiltered
                     icon.name: 'view-filter'
                     icon.source: 'qrc:///icons/oxygen/32x32/status/view-filter.png'
-                    icon.width: 16
-                    icon.height: 16
-                    padding: 1
+                    icon.width: 14
+                    icon.height: 14
+                    implicitWidth: 20
+                    implicitHeight: 20
+                    padding: 0
                     focusPolicy: Qt.NoFocus
                     onClicked: {
                         trackHeadRoot.clicked();

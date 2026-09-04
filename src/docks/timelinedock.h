@@ -208,6 +208,7 @@ public slots:
     void trimClipOut(bool ripple = false);
     void initLoad();
     void handleDrop(int trackIndex, int position, QString xml);
+    void handleDropNewTrack(bool above, int position, QString xml);
     void onLoopChanged(int start, int end);
 
 protected:

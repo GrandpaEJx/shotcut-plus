@@ -28,7 +28,12 @@ Rectangle {
     id: root
 
     property int headerWidth: multitrack.trackHeaderWidth
-    property color selectedTrackColor: Qt.rgba(0.8, 0.8, 0, 0.3)
+    // '', 'above', or 'below': set while dragging over the empty space beyond the
+    // topmost/bottommost track, so dropping there auto-creates a new track
+    // (AE/Premiere/CapCut-style), instead of requiring the user to add one first.
+    property string newTrackZone: ''
+    // Subtle cool accent wash used to mark the current track (AE/Premiere-style row tint).
+    property color selectedTrackColor: Qt.rgba(35 / 255, 148 / 255, 190 / 255, 0.22)
     property alias trackCount: tracksRepeater.count
     property bool stopScrolling: false
     property color shotcutBlue: Qt.rgba(23 / 255, 92 / 255, 118 / 255, 1)
@@ -759,11 +764,12 @@ Rectangle {
         height: multitrack.trackHeight
         opacity: 0.5
         visible: false
+        color: root.newTrackZone !== '' ? root.shotcutBlue : 'white'
 
         Text {
             anchors.fill: parent
             anchors.leftMargin: 100
-            text: settings.timelineRipple ? qsTr('Insert') : qsTr('Overwrite')
+            text: root.newTrackZone === 'above' ? qsTr('New Video Track') : root.newTrackZone === 'below' ? qsTr('New Audio Track') : (settings.timelineRipple ? qsTr('Insert') : qsTr('Overwrite'))
             style: Text.Outline
             styleColor: 'white'
             font.pixelSize: Math.min(Math.max(parent.height * 0.8, 15), 30)

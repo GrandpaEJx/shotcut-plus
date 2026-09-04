@@ -332,6 +332,8 @@ private slots:
     void on_actionJobPriorityLow_triggered();
     void on_actionJobPriorityNormal_triggered();
     void on_actionFusionLight_triggered();
+    void on_actionModernDark_triggered();
+    void on_actionModernLight_triggered();
     void on_actionTutorials_triggered();
     void on_actionRestoreLayout_triggered();
     void on_actionShowTitleBars_triggered(bool checked);

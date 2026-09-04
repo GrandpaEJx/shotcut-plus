@@ -34,6 +34,8 @@ class ShotcutSettings : public QObject
                    timelineDragScrubChanged)
     Q_PROPERTY(bool timelineShowWaveforms READ timelineShowWaveforms WRITE setTimelineShowWaveforms
                    NOTIFY timelineShowWaveformsChanged)
+    Q_PROPERTY(bool timelineLayerView READ timelineLayerView WRITE setTimelineLayerView NOTIFY
+                   timelineLayerViewChanged)
     Q_PROPERTY(bool timelineShowThumbnails READ timelineShowThumbnails WRITE
                    setTimelineShowThumbnails NOTIFY timelineShowThumbnailsChanged)
     Q_PROPERTY(bool timelineRipple READ timelineRipple WRITE setTimelineRipple NOTIFY
@@ -236,6 +238,11 @@ public:
     void setTimelineDragScrub(bool);
     bool timelineShowWaveforms() const;
     void setTimelineShowWaveforms(bool);
+    // Canva/CapCut-style layer-based timeline view (see src/qml/views/layertimeline/)
+    // instead of the classic track/waveform timeline. Additive: does not affect the
+    // underlying MLT multitrack model, only which QML is loaded into the Timeline dock.
+    bool timelineLayerView() const;
+    void setTimelineLayerView(bool);
     bool timelineShowThumbnails() const;
     void setTimelineShowThumbnails(bool);
     bool timelineRipple() const;
@@ -453,6 +460,7 @@ signals:
     void savePathChanged();
     void timelineDragScrubChanged();
     void timelineShowWaveformsChanged();
+    void timelineLayerViewChanged();
     void timelineShowThumbnailsChanged();
     void timelineRippleChanged();
     void timelineRippleAllTracksChanged();

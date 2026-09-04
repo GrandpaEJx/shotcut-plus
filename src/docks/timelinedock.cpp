@@ -296,6 +296,8 @@ TimelineDock::TimelineDock(QWidget *parent)
     viewMenu->addAction(Actions["timelineZoomInAction"]);
     viewMenu->addAction(Actions["timelineZoomFitAction"]);
     viewMenu->addAction(Actions["timelinePropertiesAction"]);
+    viewMenu->addSeparator();
+    viewMenu->addAction(Actions["timelineToggleLayerViewAction"]);
     m_mainMenu->addMenu(viewMenu);
     QMenu *markerMenu = new QMenu(tr("Marker"), this);
     markerMenu->addAction(Actions["timelineMarkerAction"]);
@@ -1385,6 +1387,21 @@ void TimelineDock::setupActions()
         action->setChecked(Settings.timelineShowWaveforms());
     });
     Actions.add("timelineShowWaveformsAction", action);
+
+    action = new QAction(tr("Layer View"), this);
+    action->setCheckable(true);
+    action->setChecked(Settings.timelineLayerView());
+    action->setWhatsThis(
+        tr("Switch between the classic track timeline and a simplified, "
+           "Canva/CapCut-style layer-based timeline."));
+    connect(action, &QAction::triggered, this, [&](bool checked) {
+        Settings.setTimelineLayerView(checked);
+        load(true);
+    });
+    connect(&Settings, &ShotcutSettings::timelineLayerViewChanged, action, [=]() {
+        action->setChecked(Settings.timelineLayerView());
+    });
+    Actions.add("timelineToggleLayerViewAction", action);
 
     action = new QAction(tr("Use Higher Performance Waveforms"), this);
     action->setCheckable(true);
@@ -3758,6 +3775,23 @@ void TimelineDock::handleDrop(int trackIndex, int position, QString xmlOrUrls)
     }
 }
 
+/*!
+    \qmlmethod void TimelineDock::handleDropNewTrack(bool above, int position, QString xml)
+    \brief Creates a new video track (above) or audio track (below) and drops the clip there.
+
+    Used when a clip is dragged into the empty space above the topmost or below the
+    bottommost track, so the user does not have to manually add a track first
+    (matching the drag-and-drop behavior of Premiere/After Effects/CapCut/Kinemaster).
+*/
+void TimelineDock::handleDropNewTrack(bool above, int position, QString xmlOrUrls)
+{
+    MAIN.undoStack()->beginMacro(tr("Add Track and Drop"));
+    int trackIndex = above ? addVideoTrack() : addAudioTrack();
+    setCurrentTrack(trackIndex);
+    handleDrop(trackIndex, position, xmlOrUrls);
+    MAIN.undoStack()->endMacro();
+}
+
 void TimelineDock::insertOrOverwriteDrop(int trackIndex, int position, const QString &xml)
 {
     auto autoAddTracks = Settings.timelineAutoAddTracks();
@@ -4968,9 +5002,19 @@ void TimelineDock::load(bool force)
             saveCurrentTrack = currentTrack();
         QDir sourcePath = QmlUtilities::qmlDir();
         sourcePath.cd("views");
-        sourcePath.cd("timeline");
-        m_quickView.setFocusPolicy(isFloating() ? Qt::NoFocus : Qt::StrongFocus);
-        m_quickView.setSource(QUrl::fromLocalFile(sourcePath.filePath("timeline.qml")));
+        // The layer view (src/qml/views/layertimeline/) is an additive, alternate
+        // presentation of the same MultitrackModel/TimelineDock API used by the
+        // classic view (src/qml/views/timeline/) -- neither the model nor MLT are
+        // affected by which one is loaded, so this can be toggled freely.
+        if (Settings.timelineLayerView()) {
+            sourcePath.cd("layertimeline");
+            m_quickView.setFocusPolicy(isFloating() ? Qt::NoFocus : Qt::StrongFocus);
+            m_quickView.setSource(QUrl::fromLocalFile(sourcePath.filePath("LayerTimeline.qml")));
+        } else {
+            sourcePath.cd("timeline");
+            m_quickView.setFocusPolicy(isFloating() ? Qt::NoFocus : Qt::StrongFocus);
+            m_quickView.setSource(QUrl::fromLocalFile(sourcePath.filePath("timeline.qml")));
+        }
         if (force && Settings.timelineShowWaveforms())
             m_model.reload();
         if (saveCurrentTrack != -1)

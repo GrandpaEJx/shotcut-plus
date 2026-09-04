@@ -82,7 +82,12 @@ Rectangle {
         const last = Math.min(Math.ceil(clipPxW / waveformMaxWidth), Math.ceil(Math.max(localRight, 0) / waveformMaxWidth));
         return Math.min(8, Math.max(0, last - waveformFirstTile));
     }
-    property color clipColor: isBlank ? 'transparent' : isTransition ? 'mediumpurple' : isAudio ? 'darkseagreen' : root.shotcutBlue
+    // Flat clip-type palette (CapCut/AE-style flat fills, no gradient).
+    // Video reuses root.shotcutBlue so timeline clips stay consistent with
+    // the track-header selection color elsewhere in the app.
+    readonly property color audioColor: '#5A9B72'
+    readonly property color transitionColor: '#8F7FE0'
+    property color clipColor: isBlank ? 'transparent' : isTransition ? transitionColor : isAudio ? audioColor : root.shotcutBlue
 
     signal clicked(var clip, var mouse)
     signal clipRightClicked(var clip, var mouse)
@@ -172,9 +177,11 @@ Rectangle {
 
     border.color: (selected || Drag.active || trackIndex != originalTrackIndex) ? group < 0 ? 'red' : 'white' : 'black'
     border.width: (isBlank && !selected) ? 0 : 1
+    // Subtle rounded corners for a cleaner, more modern clip shape (CapCut/AE-style),
+    // while keeping frame-accurate width/position untouched.
+    radius: isBlank ? 0 : 4
     clip: !offScreen && clipPxW < 4096
     color: clipColor
-    gradient: offScreen ? null : clipGradient
     width: offScreen ? 1 : clipPxW
     Drag.active: mouseArea.drag.active
     Drag.proposedAction: Qt.MoveAction
@@ -199,13 +206,8 @@ Rectangle {
             when: clipRoot.selected && clipRoot.isBlank
 
             PropertyChanges {
-                target: gradientStop2
-                color: Qt.lighter(selectedTrackColor)
-            }
-
-            PropertyChanges {
-                target: gradientStop
-                color: Qt.darker(selectedTrackColor)
+                target: clipRoot
+                color: selectedTrackColor
             }
         },
         State {
@@ -215,11 +217,7 @@ Rectangle {
             PropertyChanges {
                 target: clipRoot
                 z: 1
-            }
-
-            PropertyChanges {
-                target: gradientStop
-                color: Qt.darker(clipColor)
+                color: Qt.lighter(clipColor, 1.12)
             }
         }
     ]
@@ -417,7 +415,7 @@ Rectangle {
         id: transitionComponent
 
         Shotcut.TimelineTransition {
-            property var color: isAudio ? 'darkseagreen' : root.shotcutBlue
+            property var color: isAudio ? clipRoot.audioColor : root.shotcutBlue
 
             anchors.fill: parent
             anchors.margins: selected ? parent.border.width : 0
@@ -835,7 +833,7 @@ Rectangle {
         anchors.left: parent.left
         anchors.leftMargin: 0
         height: parent.height
-        width: 5
+        width: 8
         color: isAudio ? 'green' : 'lawngreen'
         opacity: 0
         Drag.active: trimInMouseArea.drag.active
@@ -893,7 +891,7 @@ Rectangle {
         anchors.right: parent.right
         anchors.rightMargin: 0
         height: parent.height
-        width: 5
+        width: 8
         color: 'red'
         opacity: 0
         Drag.active: trimOutMouseArea.drag.active
@@ -953,24 +951,6 @@ Rectangle {
             s = inThumbnail.source.toString();
             if (s.substring(s.length - 1) === '!')
                 inThumbnail.source = s.substring(0, s.length - 1);
-        }
-    }
-
-    Gradient {
-        id: clipGradient
-
-        GradientStop {
-            id: gradientStop
-
-            position: 0
-            color: Qt.lighter(clipColor)
-        }
-
-        GradientStop {
-            id: gradientStop2
-
-            position: 1
-            color: clipColor
         }
     }
 }

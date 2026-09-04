@@ -1,0 +1,11 @@
+[Icon Theme]
+Name=modern-light
+Inherits=light
+Directories=scalable
+
+[scalable]
+Size=32
+MinSize=8
+MaxSize=512
+Type=Scalable
+Context=Actions

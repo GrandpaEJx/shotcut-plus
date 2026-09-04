@@ -1101,6 +1101,23 @@ void ShotcutSettings::setTimelineShowWaveforms(bool b)
 }
 
 /*!
+    \qmlproperty bool Settings::timelineLayerView
+    \brief Whether the Timeline dock shows the Canva/CapCut-style layer-based view
+    instead of the classic track/waveform view.
+*/
+
+bool ShotcutSettings::timelineLayerView() const
+{
+    return settings.value("timeline/layerView", false).toBool();
+}
+
+void ShotcutSettings::setTimelineLayerView(bool b)
+{
+    settings.setValue("timeline/layerView", b);
+    emit timelineLayerViewChanged();
+}
+
+/*!
     \qmlproperty bool Settings::timelineShowThumbnails
     \brief Whether video thumbnails are shown on timeline clips.
 */

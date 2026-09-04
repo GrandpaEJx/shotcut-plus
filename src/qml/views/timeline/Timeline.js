@@ -50,26 +50,47 @@ function dragging(pos, duration) {
         let i = 0;
         dropTarget.x = pos.x
         dropTarget.width = duration * multitrack.scaleFactor
+        root.newTrackZone = ''
 
-        for (i = 0; i < tracksRepeater.count; i++) {
-            let trackY = tracksRepeater.itemAt(i).y + headerHeight - tracksFlickable.contentY
-            let trackH = tracksRepeater.itemAt(i).height
-            if (pos.y >= trackY && pos.y < trackY + trackH) {
-                timeline.currentTrack = i
-                if (pos.x > headerWidth) {
-                    dropTarget.height = trackH
-                    dropTarget.y = trackY
-                    if (dropTarget.y < headerHeight) {
-                        dropTarget.height -= headerHeight - dropTarget.y
-                        dropTarget.y = headerHeight
-                    }
-                    dropTarget.visible = true
-                }
-                break
-            }
+        // A narrow band at the very top of the topmost track and the very bottom of
+        // the bottommost track (plus the little padding gap past it) offers to create
+        // a new track instead of dropping onto that track, like Premiere/AE/CapCut.
+        const newTrackEdge = 12
+        let firstTrackY = tracksRepeater.itemAt(0).y + headerHeight - tracksFlickable.contentY
+        let lastTrackItem = tracksRepeater.itemAt(tracksRepeater.count - 1)
+        let lastTrackBottom = lastTrackItem.y + lastTrackItem.height + headerHeight - tracksFlickable.contentY
+
+        if (pos.x > headerWidth && pos.y >= firstTrackY && pos.y < firstTrackY + newTrackEdge) {
+            root.newTrackZone = 'above'
+        } else if (pos.x > headerWidth && pos.y >= lastTrackBottom - newTrackEdge && pos.y < lastTrackBottom + 30) {
+            root.newTrackZone = 'below'
         }
-        if (i === tracksRepeater.count || pos.x <= headerWidth)
-            dropTarget.visible = false
+
+        if (root.newTrackZone !== '') {
+            dropTarget.height = 8
+            dropTarget.y = (root.newTrackZone === 'above') ? (firstTrackY - 4) : (lastTrackBottom - 4)
+            dropTarget.visible = true
+        } else {
+            for (i = 0; i < tracksRepeater.count; i++) {
+                let trackY = tracksRepeater.itemAt(i).y + headerHeight - tracksFlickable.contentY
+                let trackH = tracksRepeater.itemAt(i).height
+                if (pos.y >= trackY && pos.y < trackY + trackH) {
+                    timeline.currentTrack = i
+                    if (pos.x > headerWidth) {
+                        dropTarget.height = trackH
+                        dropTarget.y = trackY
+                        if (dropTarget.y < headerHeight) {
+                            dropTarget.height -= headerHeight - dropTarget.y
+                            dropTarget.y = headerHeight
+                        }
+                        dropTarget.visible = true
+                    }
+                    break
+                }
+            }
+            if (i === tracksRepeater.count || pos.x <= headerWidth)
+                dropTarget.visible = false
+        }
 
         // Scroll tracks if at edges.
         if (pos.x > headerWidth + tracksFlickable.width - 50) {
@@ -104,12 +125,18 @@ function dragging(pos, duration) {
 
 function dropped() {
     dropTarget.visible = false
+    root.newTrackZone = ''
     scrollTimer.running = false
 }
 
 function acceptDrop(xml) {
     let position = Math.round((dropTarget.x + tracksFlickable.contentX - headerWidth) / multitrack.scaleFactor)
-    timeline.handleDrop(timeline.currentTrack, position, xml)
+    if (root.newTrackZone !== '') {
+        timeline.handleDropNewTrack(root.newTrackZone === 'above', position, xml)
+        root.newTrackZone = ''
+    } else {
+        timeline.handleDrop(timeline.currentTrack, position, xml)
+    }
 }
 
 function trackHeight() {
