@@ -46,9 +46,13 @@ Rectangle {
     property real _minimumGainDb: -70
     // Track-type accent used for the selection bar/tint (matches Clip.qml's audioColor).
     readonly property color audioAccent: '#5A9B72'
-    readonly property color trackAccent: isVideo ? root.shotcutBlue : audioAccent
+    property color shotcutBlue: '#175C76'
+    readonly property color trackAccent: isVideo ? shotcutBlue : audioAccent
 
     signal clicked
+    // trackIndex/position let a right-click on the header feed the same
+    // "Generate" quick-add flow as a blank-area right-click on the timeline.
+    signal timelineRightClicked(int trackIndex, int position)
 
     function pulseLockButton() {
         lockButtonAnim.restart();
@@ -311,7 +315,7 @@ Rectangle {
             parent.clicked();
             nameEdit.focus = false;
             if (mouse.button === Qt.RightButton)
-                root.timelineRightClicked();
+                trackHeadRoot.timelineRightClicked(trackHeadRoot.trackIndex, timeline.position);
         }
     }
 

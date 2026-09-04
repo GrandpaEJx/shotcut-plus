@@ -242,6 +242,10 @@ TimelineDock::TimelineDock(QWidget *parent)
     setupActions();
 
     m_mainMenu = new QMenu(tr("Timeline"), this);
+    // First and most prominent: quick-add an element (text/shape/sticker/...)
+    // right where the user right-clicked, CapCut/Canva-style.
+    m_mainMenu->addAction(Actions["timelineNewGenerator"]);
+    m_mainMenu->addSeparator();
     QMenu *trackOperationsMenu = new QMenu(tr("Track Operations"), this);
     trackOperationsMenu->addAction(Actions["timelineAddAudioTrackAction"]);
     trackOperationsMenu->addAction(Actions["timelineAddVideoTrackAction"]);
@@ -435,9 +439,9 @@ TimelineDock::TimelineDock(QWidget *parent)
         if (m_quickView.status() == QQuickWidget::Ready) {
             connect(m_quickView.rootObject(), SIGNAL(clipClicked()), this, SIGNAL(clipClicked()));
             connect(m_quickView.rootObject(),
-                    SIGNAL(timelineRightClicked()),
+                    SIGNAL(timelineRightClicked(int, int)),
                     this,
-                    SLOT(onTimelineRightClicked()));
+                    SLOT(onTimelineRightClicked(int, int)));
             connect(m_quickView.rootObject(),
                     SIGNAL(clipRightClicked()),
                     this,
@@ -5043,8 +5047,10 @@ void TimelineDock::onTransitionAdded(int trackIndex, int clipIndex, int position
     setSelection(QList<QPoint>() << QPoint(command->getTransitionIndex(), trackIndex));
 }
 
-void TimelineDock::onTimelineRightClicked()
+void TimelineDock::onTimelineRightClicked(int trackIndex, int position)
 {
+    m_contextTrackIndex = trackIndex;
+    m_contextPosition = position;
     m_mainMenu->popup(QCursor::pos());
 }
 
@@ -5067,6 +5073,14 @@ void TimelineDock::onNoMoreEmptyTracks(bool isAudio)
 
 void TimelineDock::addGenerator(QWidget *widget)
 {
+    // A blank-area right-click sets these just before popping the menu that
+    // leads here; consume them once so a later toolbar/menu-bar invocation of
+    // "Generate" falls back to the old playhead/current-track behavior.
+    const int contextTrackIndex = m_contextTrackIndex;
+    const int contextPosition = m_contextPosition;
+    m_contextTrackIndex = -1;
+    m_contextPosition = -1;
+
     auto dialog = new QDialog(this);
     dialog->resize(426, 288);
     dialog->setWindowModality(QmlApplication::dialogModality());
@@ -5104,8 +5118,16 @@ void TimelineDock::addGenerator(QWidget *widget)
         if (QDialog::Accepted == result) {
             auto trackType = (QLatin1String("ToneProducerWidget") == name) ? AudioTrackType
                                                                            : VideoTrackType;
-            auto trackIndex = addTrackIfNeeded(trackType);
-            overwrite(trackIndex, -1, MLT.XML(producer), false);
+            int trackIndex = contextTrackIndex;
+            int position = contextPosition;
+            // Only honor the clicked track if it can actually hold this kind of
+            // element (e.g. a right-click on a video track cannot host Audio Tone).
+            if (trackIndex < 0 || trackIndex >= m_model.trackList().size()
+                || m_model.trackList().at(trackIndex).type != trackType) {
+                trackIndex = addTrackIfNeeded(trackType);
+                position = -1;
+            }
+            overwrite(trackIndex, position, MLT.XML(producer), false);
             delete producer;
         }
         if (QLatin1String("TextProducerWidget") == name) {
@@ -5145,6 +5167,11 @@ void TimelineDock::addGenerator()
 
 void TimelineDock::addAdjustmentClip()
 {
+    const int contextTrackIndex = m_contextTrackIndex;
+    const int contextPosition = m_contextPosition;
+    m_contextTrackIndex = -1;
+    m_contextPosition = -1;
+
     auto &profile = MLT.profile();
     Mlt::Producer producer(profile, "color:0");
     if (!producer.is_valid())
@@ -5154,8 +5181,14 @@ void TimelineDock::addAdjustmentClip()
     producer.set(kShotcutProducerProperty, "adjustment");
     producer.set(kShotcutCaptionProperty, tr("Adjustment Clip").toUtf8().constData());
     MLT.setDurationFromDefault(&producer);
-    auto trackIndex = addTrackIfNeeded(VideoTrackType);
-    overwrite(trackIndex, -1, MLT.XML(&producer), false);
+    int trackIndex = contextTrackIndex;
+    int position = contextPosition;
+    if (trackIndex < 0 || trackIndex >= m_model.trackList().size()
+        || m_model.trackList().at(trackIndex).type != VideoTrackType) {
+        trackIndex = addTrackIfNeeded(VideoTrackType);
+        position = -1;
+    }
+    overwrite(trackIndex, position, MLT.XML(&producer), false);
 }
 
 class FindProducersByHashParser : public Mlt::Parser

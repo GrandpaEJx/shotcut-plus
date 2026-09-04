@@ -47,7 +47,9 @@ Rectangle {
     property int zoomScrollRetries: 0
 
     signal clipClicked
-    signal timelineRightClicked
+    // trackIndex is -1 when the click was not over any track (e.g. the Output
+    // header); position is the frame under the click, for the "Generate" quick-add.
+    signal timelineRightClicked(int trackIndex, int position)
     signal clipRightClicked
 
     function applyPendingZoomScroll() {
@@ -185,7 +187,12 @@ Rectangle {
     MouseArea {
         anchors.fill: parent
         acceptedButtons: Qt.RightButton
-        onClicked: root.timelineRightClicked()
+        onClicked: mouse => {
+            const t = Logic.trackIndexForY(mouse.y);
+            if (t >= 0)
+                timeline.currentTrack = t;
+            root.timelineRightClicked(t, Logic.positionForX(mouse.x));
+        }
     }
 
     DropArea {
@@ -248,7 +255,7 @@ Rectangle {
                     onClicked: mouse => {
                         timeline.selectMultitrack();
                         if (mouse.button == Qt.RightButton)
-                            root.timelineRightClicked();
+                            root.timelineRightClicked(-1, timeline.position);
                     }
                 }
 
@@ -309,6 +316,7 @@ Rectangle {
                             isBottomVideo: model.isBottomVideo
                             isTopAudio: model.isTopAudio
                             isBottomAudio: model.isBottomAudio
+                            shotcutBlue: root.shotcutBlue
                             width: headerWidth
                             height: Logic.trackHeight()
                             current: index === timeline.currentTrack
@@ -317,6 +325,7 @@ Rectangle {
                                 timeline.currentTrack = index;
                                 timeline.selectTrackHead(timeline.currentTrack);
                             }
+                            onTimelineRightClicked: (trackIndex, position) => root.timelineRightClicked(trackIndex, position)
 
                             MouseArea {
                                 id: dragMouseArea

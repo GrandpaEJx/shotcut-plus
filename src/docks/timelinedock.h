@@ -278,6 +278,12 @@ private:
     QMenu *m_clipMenu{nullptr};
     int m_loopStart{-1};
     int m_loopEnd{-1};
+    // Set from a blank-area right-click just before m_mainMenu pops, so the
+    // "Generate" (Add Text/Shape/Sticker/...) submenu can drop the new element
+    // exactly where the user clicked instead of always at the playhead.
+    // Consumed (reset to -1) by the first add that follows.
+    int m_contextTrackIndex{-1};
+    int m_contextPosition{-1};
 
 private slots:
     void load(bool force);
@@ -290,7 +296,7 @@ private slots:
     void updateRecording();
     void onRecordFinished(AbstractJob *, bool);
     void onWarnTrackLocked();
-    void onTimelineRightClicked();
+    void onTimelineRightClicked(int trackIndex, int position);
     void onClipRightClicked();
     void onNoMoreEmptyTracks(bool isAudio);
     void addGenerator();

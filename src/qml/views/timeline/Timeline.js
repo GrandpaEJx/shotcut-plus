@@ -143,6 +143,23 @@ function trackHeight() {
     return multitrack.trackHeight * 2;
 }
 
+// Frame position under a root-space x coordinate, e.g. from a blank-area click.
+function positionForX(x) {
+    return Math.max(0, Math.round((x + tracksFlickable.contentX - headerWidth) / multitrack.scaleFactor));
+}
+
+// Track index under a root-space y coordinate, or -1 if none (e.g. the ruler).
+function trackIndexForY(y) {
+    let headerHeight = ruler.height + subtitleBar.height
+    for (let i = 0; i < tracksRepeater.count; i++) {
+        let trackY = tracksRepeater.itemAt(i).y + headerHeight - tracksFlickable.contentY
+        let trackH = tracksRepeater.itemAt(i).height
+        if (y >= trackY && y < trackY + trackH)
+            return i
+    }
+    return -1
+}
+
 function clamp(x, minimum, maximum) {
     return Math.min(Math.max(x, minimum), maximum)
 }
