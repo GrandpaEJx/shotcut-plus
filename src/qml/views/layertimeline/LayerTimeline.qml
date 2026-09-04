@@ -52,6 +52,10 @@ Rectangle {
     property int dragDeltaFrames: 0
     property int dragDeltaLayers: 0
 
+    // trackIndex is -1 when the click did not land on any layer row; position
+    // is the frame under the click, for the "Generate" quick-add menu.
+    signal timelineRightClicked(int trackIndex, int position)
+
     color: activePalette.window
     focus: true
 
@@ -482,10 +486,13 @@ Rectangle {
 
             anchors.fill: parent
             z: -1
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
             property real originX: 0
             property real originY: 0
 
             onPressed: mouse => {
+                if (mouse.button !== Qt.LeftButton)
+                    return;
                 originX = mouse.x;
                 originY = mouse.y;
                 marquee.x = mouse.x;
@@ -495,7 +502,7 @@ Rectangle {
                 marquee.visible = true;
             }
             onPositionChanged: mouse => {
-                if (!pressed)
+                if (!pressed || !(pressedButtons & Qt.LeftButton))
                     return;
                 marquee.x = Math.min(originX, mouse.x);
                 marquee.y = Math.min(originY, mouse.y);
@@ -503,6 +510,8 @@ Rectangle {
                 marquee.height = Math.abs(mouse.y - originY);
             }
             onReleased: mouse => {
+                if (mouse.button !== Qt.LeftButton)
+                    return;
                 marquee.visible = false;
                 if (marquee.width < 4 && marquee.height < 4) {
                     timeline.selection = [];
@@ -515,6 +524,16 @@ Rectangle {
                 root.selectInRect(marquee.x, marquee.y, marquee.width, marquee.height);
             }
             onCanceled: marquee.visible = false
+            onClicked: mouse => {
+                // Right-click on blank space: quick-add an element (text, shape,
+                // sticker, ...) right where the pointer landed, Canva/CapCut-style.
+                if (mouse.button !== Qt.RightButton)
+                    return;
+                const t = Logic.clamp(Math.floor(mouse.y / root.rowHeight), 0, Math.max(0, layerRepeater.count - 1));
+                if (layerRepeater.count > 0)
+                    timeline.currentTrack = t;
+                root.timelineRightClicked(layerRepeater.count > 0 ? t : -1, Math.max(0, Math.round(mouse.x / multitrack.scaleFactor)));
+            }
         }
 
         Rectangle {
