@@ -2851,6 +2851,10 @@ void MainWindow::setupActions()
 
     auto shortcuts{ui->actionKeyboardShortcuts->shortcuts()};
     shortcuts << QKeySequence(Qt::Key_Slash);
+    // This dialog searches every action in the application and runs the one you
+    // pick, so it doubles as a command palette. Ctrl+K is what that is called
+    // nearly everywhere else, and makes it reachable without hunting the menus.
+    shortcuts << QKeySequence(Qt::CTRL | Qt::Key_K);
     ui->actionKeyboardShortcuts->setShortcuts(shortcuts);
 
     // Shortcuts for actions that are only in context menus do not work unless

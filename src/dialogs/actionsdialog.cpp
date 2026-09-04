@@ -235,7 +235,7 @@ protected:
 ActionsDialog::ActionsDialog(QWidget *parent)
     : QDialog(parent)
 {
-    setWindowTitle(tr("Actions and Shortcuts"));
+    setWindowTitle(tr("Search Actions and Shortcuts"));
     setSizeGripEnabled(true);
 
     QVBoxLayout *vlayout = new QVBoxLayout();
@@ -243,7 +243,8 @@ ActionsDialog::ActionsDialog(QWidget *parent)
     // Search Bar
     QHBoxLayout *searchLayout = new QHBoxLayout();
     m_searchField = new QLineEdit(this);
-    m_searchField->setPlaceholderText(tr("search"));
+    m_searchField->setPlaceholderText(
+        tr("Search for any action, then press Enter to run it"));
     m_searchField->installEventFilter(new SearchKeyPressFilter(this));
     connect(m_searchField, &QLineEdit::textChanged, this, [&](const QString &text) {
         if (m_proxyModel) {
