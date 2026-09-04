@@ -731,6 +731,30 @@ Rectangle {
             externalDragTimer.stop();
             dropZone.clearPreview();
         }
+
+        function onZoomIn() {
+            root.adjustZoom(1.15);
+        }
+
+        function onZoomOut() {
+            root.adjustZoom(1 / 1.15);
+        }
+
+        function onZoomToFit() {
+            tracksFlickable.contentX = 0;
+            // Find scale that fits all content horizontally.
+            if (rowColumn.width > 0 && tracksFlickable.width > 0) {
+                const fitScale = rowColumn.width / tracksFlickable.width * multitrack.scaleFactor;
+                multitrack.scaleFactor = Math.max(0.002, Math.min(50, fitScale));
+            }
+        }
+
+        function onSetZoom(value) {
+            // value comes from C++ slider as value / 100.0
+            // LayerTimeline uses direct scaleFactor, convert back.
+            const newScale = Math.pow(Math.max(value, 0), 3) + 0.01;
+            multitrack.scaleFactor = Math.max(0.002, Math.min(50, newScale));
+        }
     }
 
     // ---- Bottom bar: add layer / zoom ----
